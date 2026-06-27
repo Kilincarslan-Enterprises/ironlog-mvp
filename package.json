@@ -1,0 +1,11 @@
+{
+  "name": "ironlog",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler pages dev static --compatibility-date=2025-06-27",
+    "deploy": "wrangler pages deploy static"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

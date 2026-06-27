@@ -1,0 +1,9 @@
+name = "ironlog"
+compatibility_date = "2025-06-27"
+pages_build_output_dir = "static"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ironlog-db"
+database_id = "<your-d1-database-id>"
+migrations_dir = "migrations"
