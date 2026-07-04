@@ -30,3 +30,6 @@ dist-ssr
 
 # wrangler local dev secrets
 .dev.vars
+
+# wrangler local state (local D1, cache, build artifacts)
+.wrangler
