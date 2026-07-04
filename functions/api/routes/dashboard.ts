@@ -1,11 +1,10 @@
 import { Hono } from "hono";
-import type { Env } from "../env";
-import { getAuth } from "@hono/clerk-auth";
 import { getDb } from "../db";
-import { eq, and, gte, lte } from "drizzle-orm";
-import { users, meals, mealItems, workoutSessions, weightEntries, supplementLogs, supplements } from "../../../db/schema";
+import { and, eq, gte, lte } from "drizzle-orm";
+import { meals, workoutSessions, weightEntries, supplementLogs, supplements } from "../../../db/schema";
+import { AppEnv, getCtxUser } from "../auth";
 
-const dashboard = new Hono<{ Bindings: Env }>();
+const dashboard = new Hono<AppEnv>();
 
 function getTodayRange(timezone: string) {
   // Simple timezone offset calculation
@@ -40,29 +39,10 @@ function getTodayRange(timezone: string) {
 }
 
 dashboard.get("/", async (c) => {
-  const auth = getAuth(c);
-  if (!auth?.userId) return c.json({ error: "Unauthorized" }, 401);
-  
+  const user = getCtxUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+
   const db = getDb(c.env.DB);
-  
-  let user = await db.query.users.findFirst({
-    where: eq(users.clerkId, auth.userId)
-  });
-  
-  if (!user) {
-    const [newUser] = await db.insert(users).values({
-      id: crypto.randomUUID(),
-      clerkId: auth.userId,
-      email: `${auth.userId}@placeholder.com`,
-      displayName: "Athlet",
-      timezone: "Europe/Berlin",
-      dailyCalorieTarget: 2500,
-      dailyProteinTarget: 150,
-      dailyCarbsTarget: 250,
-      dailyFatTarget: 80,
-    }).returning();
-    user = newUser;
-  }
 
   const { start, end } = getTodayRange(user.timezone || "Europe/Berlin");
   const startMs = start.getTime();

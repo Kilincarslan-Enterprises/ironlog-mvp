@@ -1,39 +1,19 @@
 import { Hono } from "hono";
-import type { Env } from "../env";
-import { getAuth } from "@hono/clerk-auth";
-import { getDb } from "../db";
 import { eq, or, and, gte, lte } from "drizzle-orm";
-import { users, foodPresets, meals, mealItems } from "../../../db/schema";
+import { getDb } from "../db";
+import { foodPresets, meals, mealItems } from "../../../db/schema";
+import { AppEnv, getCtxUser } from "../auth";
 
-const food = new Hono<{ Bindings: Env }>();
+const food = new Hono<AppEnv>();
 
-// Helper to get or create DB user from Clerk auth
-async function getDbUser(db: any, clerkId: string) {
-  let user = await db.query.users.findFirst({
-    where: eq(users.clerkId, clerkId)
-  });
-  if (!user) {
-    const [newUser] = await db.insert(users).values({
-      id: crypto.randomUUID(),
-      clerkId,
-      email: `${clerkId}@placeholder.com`,
-      displayName: "Athlet",
-      timezone: "Europe/Berlin",
-      dailyCalorieTarget: 2500,
-      dailyProteinTarget: 150,
-      dailyCarbsTarget: 250,
-      dailyFatTarget: 80,
-    }).returning();
-    user = newUser;
-  }
-  return user;
-}
+// ---------------------------------------------------------------------------
+// Food presets
+// ---------------------------------------------------------------------------
 
 // Get user food presets + public presets
 food.get("/presets", async (c) => {
-  const auth = getAuth(c);
+  const user = getCtxUser(c);
   const db = getDb(c.env.DB);
-  const user = await getDbUser(db, auth!.userId!);
 
   const presets = await db.query.foodPresets.findMany({
     where: or(
@@ -47,9 +27,8 @@ food.get("/presets", async (c) => {
 
 // Create new food preset
 food.post("/presets", async (c) => {
-  const auth = getAuth(c);
+  const user = getCtxUser(c);
   const db = getDb(c.env.DB);
-  const user = await getDbUser(db, auth!.userId!);
 
   const body = await c.req.json();
   const [preset] = await db.insert(foodPresets).values({
@@ -72,22 +51,130 @@ food.post("/presets", async (c) => {
   return c.json({ preset });
 });
 
-// Get meals logged today
-food.get("/meals", async (c) => {
-  const auth = getAuth(c);
+// Edit existing food preset (scoped to user — public presets owned by others cannot be edited here)
+food.put("/presets/:id", async (c) => {
+  const user = getCtxUser(c);
   const db = getDb(c.env.DB);
-  const user = await getDbUser(db, auth!.userId!);
+  const id = c.req.param("id");
 
-  // Simple today check
+  const existing = await db.query.foodPresets.findFirst({
+    where: and(eq(foodPresets.id, id), eq(foodPresets.userId, user.id))
+  });
+  if (!existing) {
+    return c.json({ error: "Not found" }, 404);
+  }
+
+  const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+
+  const updates: Record<string, unknown> = { updatedAt: new Date() };
+  if (typeof body.name === "string") updates.name = body.name;
+  if (body.brand !== undefined) updates.brand = body.brand || null;
+  if (body.servingSize !== undefined) updates.servingSize = Number(body.servingSize);
+  if (body.servingUnit !== undefined) updates.servingUnit = body.servingUnit;
+  if (body.calories !== undefined) updates.calories = Number(body.calories);
+  if (body.protein !== undefined) updates.protein = Number(body.protein);
+  if (body.carbs !== undefined) updates.carbs = Number(body.carbs);
+  if (body.fat !== undefined) updates.fat = Number(body.fat);
+  if (body.fiber !== undefined) updates.fiber = Number(body.fiber);
+  if (body.sodium !== undefined) updates.sodium = Number(body.sodium);
+  if (body.barcode !== undefined) updates.barcode = body.barcode || null;
+  if (body.isPublic !== undefined) updates.isPublic = !!body.isPublic;
+
+  const [updated] = await db
+    .update(foodPresets)
+    .set(updates)
+    .where(and(eq(foodPresets.id, id), eq(foodPresets.userId, user.id)))
+    .returning();
+
+  return c.json({ preset: updated });
+});
+
+// Delete food preset (scoped to user)
+food.delete("/presets/:id", async (c) => {
+  const user = getCtxUser(c);
+  const db = getDb(c.env.DB);
+  const id = c.req.param("id");
+
+  const deleted = await db
+    .delete(foodPresets)
+    .where(and(eq(foodPresets.id, id), eq(foodPresets.userId, user.id)))
+    .returning();
+
+  if (deleted.length === 0) {
+    return c.json({ error: "Not found" }, 404);
+  }
+
+  return c.json({ success: true });
+});
+
+// ---------------------------------------------------------------------------
+// Meals
+// ---------------------------------------------------------------------------
+
+// Resolve the [start, end] range for "today" (no date) or a given YYYY-MM-DD,
+// interpreted in the user's timezone.
+function dayRange(dateStr: string | undefined, timezone: string): { start: Date; end: Date } {
+  const tz = timezone || "Europe/Berlin";
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+  let localNow = now;
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+    });
+    localNow = new Date(formatter.format(now));
+  } catch {
+    // invalid tz → fall back to UTC
+  }
+
+  let y = localNow.getFullYear();
+  let m = localNow.getMonth();
+  let d = localNow.getDate();
+
+  if (dateStr) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+    if (match) {
+      y = Number(match[1]);
+      m = Number(match[2]) - 1;
+      d = Number(match[3]);
+    } else {
+      throw new Error("Invalid date format; expected YYYY-MM-DD");
+    }
+  }
+
+  const start = new Date(y, m, d, 0, 0, 0, 0);
+  const end = new Date(y, m, d, 23, 59, 59, 999);
+  const diff = now.getTime() - localNow.getTime();
+  return {
+    start: new Date(start.getTime() + diff),
+    end: new Date(end.getTime() + diff),
+  };
+}
+
+// Get meals logged for a given day (defaults to today). Supports ?date=YYYY-MM-DD.
+food.get("/meals", async (c) => {
+  const user = getCtxUser(c);
+  const db = getDb(c.env.DB);
+
+  const date = c.req.query("date");
+  let range: { start: Date; end: Date };
+  try {
+    range = dayRange(date, user.timezone);
+  } catch (e: any) {
+    return c.json({ error: e.message }, 400);
+  }
 
   const loggedMeals = await db.query.meals.findMany({
     where: and(
       eq(meals.userId, user.id),
-      gte(meals.loggedAt, start),
-      lte(meals.loggedAt, end)
+      gte(meals.loggedAt, range.start),
+      lte(meals.loggedAt, range.end)
     ),
     with: {
       items: true
@@ -99,20 +186,19 @@ food.get("/meals", async (c) => {
 
 // Log a meal (with food items)
 food.post("/meals", async (c) => {
-  const auth = getAuth(c);
+  const user = getCtxUser(c);
   const db = getDb(c.env.DB);
-  const user = await getDbUser(db, auth!.userId!);
 
   const body = await c.req.json(); // { name: string, loggedAt: number, items: Array<{ name, quantity, calories, protein, carbs, fat, foodPresetId? }> }
-  
+
   const mealId = crypto.randomUUID();
-  const [meal] = await db.insert(meals).values({
+  await db.insert(meals).values({
     id: mealId,
     userId: user.id,
     name: body.name || "Mahlzeit",
     loggedAt: new Date(body.loggedAt || Date.now()),
     note: body.note || null,
-  }).returning();
+  });
 
   const itemsToInsert = (body.items || []).map((item: any) => ({
     id: crypto.randomUUID(),
@@ -143,11 +229,37 @@ food.post("/meals", async (c) => {
   return c.json({ meal: completeMeal });
 });
 
+// Remove a single item from a meal (scoped to user via meal ownership)
+food.delete("/meals/:id/items/:itemId", async (c) => {
+  const user = getCtxUser(c);
+  const db = getDb(c.env.DB);
+  const id = c.req.param("id");
+  const itemId = c.req.param("itemId");
+
+  // Ensure the meal belongs to the user before deleting its item.
+  const meal = await db.query.meals.findFirst({
+    where: and(eq(meals.id, id), eq(meals.userId, user.id))
+  });
+  if (!meal) {
+    return c.json({ error: "Not found" }, 404);
+  }
+
+  const deleted = await db
+    .delete(mealItems)
+    .where(and(eq(mealItems.id, itemId), eq(mealItems.mealId, id)))
+    .returning();
+
+  if (deleted.length === 0) {
+    return c.json({ error: "Not found" }, 404);
+  }
+
+  return c.json({ success: true });
+});
+
 // Delete a meal log
 food.delete("/meals/:id", async (c) => {
-  const auth = getAuth(c);
+  const user = getCtxUser(c);
   const db = getDb(c.env.DB);
-  const user = await getDbUser(db, auth!.userId!);
   const id = c.req.param("id");
 
   await db.delete(meals).where(
