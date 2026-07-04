@@ -1,0 +1,66 @@
+name: Apply D1 migrations (remote)
+
+# Applies the SQL migrations in `migrations/` to the remote production D1
+# database (ironlog-mvp-db). This is needed because the native Cloudflare Pages
+# GitHub integration builds and deploys the frontend + Pages Functions but
+# does NOT run `wrangler d1 migrations apply`, so the remote DB would otherwise
+# have no tables and every DB-backed API endpoint would 500.
+#
+# Triggered manually (Actions tab → "Run workflow") or by `gh workflow run`.
+# It does not deploy — the native CF Pages integration handles build + deploy.
+#
+# Required GitHub repo secrets (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN  — CF API token with D1:Edit on the database's account.
+#                           MUST NOT be IP-restricted, or CI hits CF error 9109.
+#   CLOUDFLARE_ACCOUNT_ID — CF account ID that owns the D1 database.
+#
+# Clerk runtime env bindings (CLERK_SECRET_KEY, CLERK_PUBLISHABLE_KEY) and the
+# build-time VITE_CLERK_PUBLISHABLE_KEY are managed in the Cloudflare Pages
+# project (Settings → Environment variables) — not by this workflow.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate required secrets
+        run: |
+          missing=0
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            val="${!name}"
+            if [ -z "$val" ]; then
+              echo "::error::Missing required GitHub secret: $name. See docs/secrets.md."
+              missing=1
+            fi
+          done
+          if [ "$missing" -eq 1 ]; then
+            echo "::error::Add CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID under repo Settings → Secrets and variables → Actions, then re-run."
+            exit 1
+          fi
+          echo "Required secrets present."
+
+      - name: Apply D1 migrations (remote)
+        run: npx wrangler d1 migrations apply ironlog-mvp-db --remote
+
+      - name: Verify tables exist
+        run: npx wrangler d1 execute ironlog-mvp-db --remote --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"

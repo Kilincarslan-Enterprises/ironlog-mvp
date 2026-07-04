@@ -1,47 +1,53 @@
-# Required GitHub Actions secrets
+# Deployment & migrations setup
 
-The `Deploy to Cloudflare Pages` workflow (`.github/workflows/deploy.yml`)
-deploys IronLog, applies D1 migrations, and pushes the Clerk runtime env
-bindings — entirely from these five GitHub repo secrets. No manual
-Cloudflare dashboard steps are needed once they are set.
+IronLog deploys via the **native Cloudflare Pages GitHub integration** (repo
+connect in the Pages dashboard): Cloudflare builds the frontend + Pages
+Functions and deploys on push to `main`. That integration does **not** run D1
+migrations, so the remote DB is kept in sync separately.
 
-Add them under the repo's **Settings → Secrets and variables → Actions →
-Repository secrets → New repository secret**.
+## 1. Clerk env vars (Pages project — set once in the dashboard)
 
-| Secret name | What it is | Where to get it |
+Set these in the Cloudflare Pages project → **Settings → Environment
+variables** (Production):
+
+| Variable | Value | Used by |
 |---|---|---|
-| `CLOUDFLARE_API_TOKEN` | CF API token with permissions: **Workers R2 Storage** off, **Account → Workers Scripts: Edit**, **Account → D1: Edit**, **Account → Pages: Edit** (and read on the relevant resources). | Cloudflare dashboard → My Profile → API Tokens → Create Token → "Custom token". IP-restriction: leave it **unrestricted** (or allow GitHub Actions IPs), or CI will fail with error `9109 Cannot use the access token from location`. |
-| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID. | Cloudflare dashboard → any domain/Workers page → right sidebar → "Account ID". |
-| `CLERK_SECRET_KEY` | Clerk **secret** key (starts `sk_`). | Clerk dashboard → API Keys → Secret keys. Use the **production** instance key, not the test key. |
-| `CLERK_PUBLISHABLE_KEY` | Clerk **publishable** key for production (starts `pk_live_`). | Clerk dashboard → API Keys → Publishable key (production instance). |
-| `VITE_CLERK_PUBLISHABLE_KEY` | Same `pk_live_*` publishable key — Vite bakes it into the browser bundle at build time. | Same as above. |
+| `CLERK_SECRET_KEY` | Clerk secret key (`sk_*`) | API runtime — `@hono/clerk-auth` verifies JWTs |
+| `CLERK_PUBLISHABLE_KEY` | Clerk prod publishable key (`pk_live_*`) | API runtime — `@hono/clerk-auth` |
+| `VITE_CLERK_PUBLISHABLE_KEY` | same `pk_live_*` | Vite build — baked into the browser bundle |
 
-> The live site currently shows "Clerk has been loaded with development keys"
-> because the build used the `pk_test_*` dev key. Set
-> `VITE_CLERK_PUBLISHABLE_KEY` to the `pk_live_*` value to fix it.
+> Without `CLERK_SECRET_KEY` / `CLERK_PUBLISHABLE_KEY`, `clerkMiddleware()`
+> throws → 500 on every API endpoint. Without the `pk_live_*` build key, the
+> frontend shows "Clerk has been loaded with development keys".
 
-## After adding the secrets
+These are managed directly in the Pages dashboard — they are **not** GitHub
+secrets and are not touched by any workflow.
 
-1. Re-run the `Deploy to Cloudflare Pages` workflow (push to `main`, or run it
-   manually from the Actions tab). It will:
-   - build the frontend with the production Clerk publishable key,
-   - apply the D1 migrations to the remote database,
-   - push `CLERK_SECRET_KEY` + `CLERK_PUBLISHABLE_KEY` as Pages runtime secrets,
-   - deploy the new build.
-2. If you previously connected the **native Cloudflare Pages GitHub
-   integration** (the "Connect to Git" path in the Pages dashboard), disable
-   it so there is a single deploy path (GitHub Actions). Otherwise you will get
-   double deployments and the native build will still use the dev Clerk key /
-   miss the migrations.
+## 2. D1 migrations (GitHub Actions — 2 repo secrets)
 
-## Verifying
+The `Apply D1 migrations (remote)` workflow (`.github/workflows/migrate.yml`)
+applies `migrations/` to the remote `ironlog-mvp-db`. It is triggered manually
+(Actions tab → "Run workflow", or `gh workflow run migrate.yml`) — it does not
+deploy.
 
-Once green, these endpoints should return `200` (with valid auth), not `500`:
+Add these two GitHub repo secrets (**Settings → Secrets and variables →
+Actions → Repository secrets**):
 
-- `GET /api/dashboard`
-- `GET /api/training/exercises`
-- `GET /api/supplements`
-- `GET /api/nutrition/daily`
-- `GET /api/training/workout-plans`
-- `GET /api/training/personal-records`
-- `GET /api/training/workout-sessions`
+| Secret | What it is | Notes |
+|---|---|---|
+| `CLOUDFLARE_API_TOKEN` | CF API token with **D1:Edit** on the database's account. | **Must not be IP-restricted** — if it is, CI fails with Cloudflare error `9109 Cannot use the access token from location`. Create at Cloudflare → My Profile → API Tokens. |
+| `CLOUDFLARE_ACCOUNT_ID` | CF account ID owning the D1 database. | Cloudflare dashboard → any domain/Workers page → right sidebar → "Account ID". |
+
+After adding both, trigger the workflow. The "Verify tables exist" step prints
+the remote tables so you can confirm the schema landed.
+
+## Verifying the fix (Definition of Done)
+
+- `gh run list` → `Apply D1 migrations (remote)` ✓
+- Authenticated API calls return 200, not 500:
+  `GET /api/dashboard`, `/api/training/exercises`, `/api/supplements`,
+  `/api/nutrition/daily`, `/api/training/workout-plans`,
+  `/api/training/personal-records`, `/api/training/workout-sessions`
+- No "Clerk has been loaded with development keys" warning
+- UI shows empty states (not error states) when there's no data; data can be
+  created through the UI

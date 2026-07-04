@@ -77,12 +77,13 @@ bindings, read by the API at request time).
 | `CLERK_PUBLISHABLE_KEY` | Used by `@hono/clerk-auth` to verify JWTs |
 | `CLERK_SECRET_KEY` | Used by `@hono/clerk-auth` backend |
 
-In **production**, these are pushed automatically by the `Deploy to Cloudflare
-Pages` GitHub Actions workflow from the `CLERK_SECRET_KEY` /
-`CLERK_PUBLISHABLE_KEY` repo secrets — see [`docs/secrets.md`](docs/secrets.md)
-for the full list of required secrets and how to create each one.
+In **production**, set these directly in the Cloudflare Pages project
+(Settings → Environment variables) — see [`docs/secrets.md`](docs/secrets.md)
+for the full setup. D1 migrations are applied separately by the
+`Apply D1 migrations (remote)` GitHub Actions workflow (two repo secrets).
 
-To push them manually (one-off), do **not** commit the values — use wrangler:
+To set them via wrangler instead of the dashboard (one-off, do **not** commit
+the values):
 
 ```bash
 npx wrangler pages secret put CLERK_SECRET_KEY --project-name=ironlog
