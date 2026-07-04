@@ -103,30 +103,39 @@ CLERK_SECRET_KEY=sk_test_...
 
 ## Deployment
 
-This project deploys to **Cloudflare Pages**. Two supported paths:
+This project deploys to **Cloudflare Pages** via the **native Cloudflare Pages
+GitHub integration** (the repo is connected in the Pages dashboard): on every
+push to `main`, Cloudflare builds the frontend + Pages Functions and deploys
+automatically. That integration does **not** run D1 migrations, so the remote
+database is kept in sync separately.
 
-### A. GitHub Actions (recommended, automated)
+### A. D1 migrations (GitHub Actions — 2 repo secrets, recommended)
 
-`.github/workflows/deploy.yml` deploys on every push to `main`. It runs
-`npm run build` and `wrangler pages deploy dist`, then applies D1 migrations
-to the remote database. Configure these repo secrets (GitHub → Settings →
-Secrets and variables → Actions):
+`.github/workflows/migrate.yml` is a manually-triggered workflow that applies
+the SQL in `migrations/` to the remote `ironlog-mvp-db` and then prints the
+resulting tables so you can confirm the schema landed. It does **not** deploy
+— the native CF Pages integration handles build + deploy. Trigger it from the
+Actions tab → "Run workflow", or `gh workflow run migrate.yml`. Add these two
+GitHub repo secrets (Settings → Secrets and variables → Actions):
 
 | Secret | Purpose |
 | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with Pages + D1 permissions |
-| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID |
-| `VITE_CLERK_PUBLISHABLE_KEY` | Injected at build time for the browser bundle |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with **D1:Edit** on the database's account (must **not** be IP-restricted, or CI fails with CF error `9109`) |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID that owns the D1 database |
 
-Runtime secrets (`CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`) are set on the
-Cloudflare Pages project directly — the CI build does not need them.
+Clerk runtime env bindings (`CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`) and
+the build-time `VITE_CLERK_PUBLISHABLE_KEY` are set in the Cloudflare Pages
+project directly (Settings → Environment variables) — they are **not** GitHub
+secrets and are not touched by any workflow. See
+[`docs/secrets.md`](docs/secrets.md) for the full setup and the Definition of
+Done checklist.
 
 ### B. Manual (wrangler)
 
 ```bash
 npm run build
 npx wrangler pages deploy dist --project-name=ironlog
-npm run db:migrate:remote   # apply D1 migrations
+npm run db:migrate:remote   # apply D1 migrations to the remote database
 ```
 
 ### wrangler.toml
