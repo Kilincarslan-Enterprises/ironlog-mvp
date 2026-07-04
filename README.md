@@ -77,11 +77,15 @@ bindings, read by the API at request time).
 | `CLERK_PUBLISHABLE_KEY` | Used by `@hono/clerk-auth` to verify JWTs |
 | `CLERK_SECRET_KEY` | Used by `@hono/clerk-auth` backend |
 
-Set runtime secrets on Cloudflare (do **not** commit them):
+In **production**, set these directly in the Cloudflare Pages project
+(Settings → Environment variables) — see [`docs/deploy.md`](docs/deploy.md) for
+the full setup. D1 migrations are applied separately (dashboard Console paste
+or `npm run db:migrate:remote`); no GitHub Actions are used.
+
+To set them via wrangler instead of the dashboard (one-off, do **not** commit
+the values):
 
 ```bash
-# Production (Cloudflare Pages dashboard → Settings → Environment variables,
-# or via wrangler):
 npx wrangler pages secret put CLERK_SECRET_KEY --project-name=ironlog
 npx wrangler pages secret put CLERK_PUBLISHABLE_KEY --project-name=ironlog
 ```
@@ -99,31 +103,30 @@ CLERK_SECRET_KEY=sk_test_...
 
 ## Deployment
 
-This project deploys to **Cloudflare Pages**. Two supported paths:
+This project deploys to **Cloudflare Pages** via the **native Cloudflare Pages
+GitHub integration** (the repo is connected in the Pages dashboard): on every
+push to `main`, Cloudflare builds the frontend + Pages Functions and deploys
+automatically. **No GitHub Actions are used.** That integration does **not**
+run D1 migrations, so the remote database schema is applied separately.
 
-### A. GitHub Actions (recommended, automated)
+### D1 migrations
 
-`.github/workflows/deploy.yml` deploys on every push to `main`. It runs
-`npm run build` and `wrangler pages deploy dist`, then applies D1 migrations
-to the remote database. Configure these repo secrets (GitHub → Settings →
-Secrets and variables → Actions):
+The native integration never runs `wrangler d1 migrations apply`, so the remote
+`ironlog-mvp-db` starts empty and every DB-backed endpoint 500s. Apply the
+initial schema once:
 
-| Secret | Purpose |
-| --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with Pages + D1 permissions |
-| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID |
-| `VITE_CLERK_PUBLISHABLE_KEY` | Injected at build time for the browser bundle |
+- **From the dashboard (no CLI):** Cloudflare → Workers & Pages → D1 →
+  `ironlog-mvp-db` → **Console** tab → paste the entire contents of
+  [`migrations/0000_acoustic_mindworm.sql`](migrations/0000_acoustic_mindworm.sql)
+  → **Run**. The `--> statement-breakpoint` lines are SQLite line-comments and
+  are ignored.
+- **With wrangler locally:** `npx wrangler login && npm run db:migrate:remote`.
 
-Runtime secrets (`CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`) are set on the
-Cloudflare Pages project directly — the CI build does not need them.
-
-### B. Manual (wrangler)
-
-```bash
-npm run build
-npx wrangler pages deploy dist --project-name=ironlog
-npm run db:migrate:remote   # apply D1 migrations
-```
+Clerk env vars (`CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`,
+`VITE_CLERK_PUBLISHABLE_KEY`) are set in the Cloudflare **Pages project**
+(Settings → Environment variables), not in GitHub. See
+[`docs/deploy.md`](docs/deploy.md) for the full setup and the Definition of Done
+checklist.
 
 ### wrangler.toml
 
