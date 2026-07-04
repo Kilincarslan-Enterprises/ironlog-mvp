@@ -1,51 +1,32 @@
-# IronLog
+# React + TypeScript + Vite
 
-Lightweight log service running on Cloudflare Pages + D1 + Pages Functions.
+This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
-## Stack
+Currently, two official plugins are available:
 
-- **Cloudflare Pages** for static hosting and edge functions
-- **D1** as the SQLite edge database
-- **Pages Functions** (`functions/`) for API routes
-- **Plain JavaScript** (no framework)
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-## Project structure
+## React Compiler
 
-```
-functions/api/[[route]].js   # Pages Function entry point
-migrations/                  # D1 SQL migrations
-static/                      # Static site assets (served by Pages)
-wrangler.toml                # Wrangler / Cloudflare project config
-package.json                 # Project manifest
-```
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-## Scripts
+## Expanding the Oxlint configuration
 
-```bash
-npm run dev                  # Local Pages dev server (needs D1 binding)
-npm run deploy               # Deploy to Cloudflare Pages
-```
+If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
 
-## D1 migrations
-
-Apply migrations to a D1 database:
-
-```bash
-wrangler d1 migrations apply ironlog-db --local   # local dev
-wrangler d1 migrations apply ironlog-db --remote  # production
+```json
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "options": {
+    "typeAware": true
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+  }
+}
 ```
 
-Replace the placeholder `database_id` in `wrangler.toml` with the real D1 database ID.
-
-## Environment setup
-
-1. Create a Cloudflare Pages project (`ironlog`).
-2. Create a D1 database (`ironlog-db`) and copy its ID into `wrangler.toml`.
-3. Bind the D1 database as `DB` in the Pages project settings.
-4. Add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` to your GitHub Actions secrets for CI/CD deploys.
-
-## API
-
-- `GET /api/health` — health check
-- `GET /api/logs` — list recent logs
-- `POST /api/logs` — create a log entry (`{ "message": "...", "level": "info" }`)
+See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.

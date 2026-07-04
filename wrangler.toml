@@ -1,9 +1,9 @@
 name = "ironlog"
 compatibility_date = "2025-06-27"
-pages_build_output_dir = "static"
+pages_build_output_dir = "dist"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "ironlog-db"
-database_id = "<your-d1-database-id>"
+database_name = "ironlog-mvp-db"
+database_id = "91354553-7d8b-4baa-bafc-112e49b39c75"
 migrations_dir = "migrations"
