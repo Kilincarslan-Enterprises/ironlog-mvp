@@ -5,3 +5,15 @@ static-out/
 .env
 *.log
 .DS_Store
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# DB files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+# Hermes
+.hermes/
