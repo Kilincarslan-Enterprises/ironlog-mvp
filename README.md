@@ -31,20 +31,23 @@ npm run db:migrate:local
 cp .env.example .env            # build-time VITE_* vars for the frontend
 cp .dev.vars.example .dev.vars  # runtime secret vars for Pages Functions
 
-# 5. Run the app + API together (Vite dev server behind wrangler pages dev,
-#    so /api/* hits the Pages Functions with the local D1 binding)
+# 5. Run the app + API together. `pages:dev` builds the frontend, then serves
+#    `dist/` + the Pages Functions on http://localhost:8788, with the local D1
+#    binding from wrangler.toml (the same D1 that `db:migrate:local` writes to).
 npm run pages:dev
 ```
 
-The app is served at the URL wrangler prints (default `http://localhost:8788`).
-The API is mounted at `/api/*`.
+The app is served at `http://localhost:8788` and the API at `/api/*`.
+For frontend HMR while iterating on UI, run `npm run dev` (Vite-only) in a
+separate terminal — the API won't be available there, so use `pages:dev` for
+full-stack work.
 
 ### Other useful scripts
 
 | Script | Description |
 | --- | --- |
-| `npm run dev` | Vite-only frontend dev (no API / no D1 binding) |
-| `npm run pages:dev` | Full stack locally: Functions + D1 + frontend |
+| `npm run dev` | Vite-only frontend dev with HMR (no API / no D1 binding) |
+| `npm run pages:dev` | Build frontend, then serve `dist` + Functions + local D1 on :8788 (no HMR) |
 | `npm run build` | Type-check (`tsc -b`) + Vite production build → `dist/` |
 | `npm run preview` | Preview the production build |
 | `npm run lint` | Oxlint |
