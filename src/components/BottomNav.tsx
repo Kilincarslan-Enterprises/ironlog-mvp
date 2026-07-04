@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
-import { Home, Utensils, Dumbbell, Pill, LineChart } from "lucide-react";
+import { Home, Utensils, Dumbbell, Pill, LineChart, Target } from "lucide-react";
 import clsx from "clsx";
 
 export interface NavTab {
@@ -9,13 +9,14 @@ export interface NavTab {
   icon: LucideIcon;
 }
 
-/** Five primary tabs. The last doubles as the "Mehr" (more) entry. */
+/** Six primary tabs (Dashboard, Essen, Training, Supps, Gewicht, Ziele). */
 export const TABS: NavTab[] = [
-  { name: "Dashboard", path: "/", icon: Home },
+  { name: "Home", path: "/", icon: Home },
   { name: "Essen", path: "/food", icon: Utensils },
   { name: "Training", path: "/training", icon: Dumbbell },
   { name: "Supps", path: "/supplements", icon: Pill },
   { name: "Gewicht", path: "/weight", icon: LineChart },
+  { name: "Ziele", path: "/goals", icon: Target },
 ];
 
 /**

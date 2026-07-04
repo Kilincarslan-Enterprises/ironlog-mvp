@@ -1,14 +1,28 @@
+import { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { SignedIn, SignedOut, SignIn } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, SignIn, useAuth } from "@clerk/clerk-react";
 
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
+import Food from "./pages/Food";
+import Training from "./pages/Training";
+import Supplements from "./pages/Supplements";
+import Weight from "./pages/Weight";
+import Goals from "./pages/Goals";
+import { setTokenGetter } from "./lib/api";
 
-// Placeholder Pages (filled in later phases)
-const Food = () => <div className="p-4 text-muted">Essen</div>;
-const Training = () => <div className="p-4 text-muted">Training</div>;
-const Supplements = () => <div className="p-4 text-muted">Supplements</div>;
-const Weight = () => <div className="p-4 text-muted">Gewicht</div>;
+/**
+ * Bridges Clerk's session JWT into the plain-module API client.
+ * Rendered once inside <SignedIn> so the token getter always reflects the
+ * active Clerk session.
+ */
+function AuthBridge() {
+  const { getToken } = useAuth();
+  useEffect(() => {
+    setTokenGetter(() => getToken());
+  }, [getToken]);
+  return null;
+}
 
 function App() {
   return (
@@ -28,6 +42,7 @@ function App() {
       </SignedOut>
 
       <SignedIn>
+        <AuthBridge />
         <Layout>
           <Routes>
             <Route path="/" element={<Dashboard />} />
@@ -35,6 +50,7 @@ function App() {
             <Route path="/training" element={<Training />} />
             <Route path="/supplements" element={<Supplements />} />
             <Route path="/weight" element={<Weight />} />
+            <Route path="/goals" element={<Goals />} />
           </Routes>
         </Layout>
       </SignedIn>
