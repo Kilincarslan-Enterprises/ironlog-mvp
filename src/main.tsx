@@ -17,3 +17,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </ClerkProvider>
   </React.StrictMode>,
 )
+
+// Register the PWA service worker (production only, so dev HMR isn't cached).
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // Swallow registration errors — app still works without offline support.
+    })
+  })
+}

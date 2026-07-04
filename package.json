@@ -9,7 +9,10 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "db:migrate:local": "wrangler d1 migrations apply ironlog-mvp-db --local"
+    "db:migrate:local": "wrangler d1 migrations apply ironlog-mvp-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply ironlog-mvp-db --remote",
+    "db:generate": "drizzle-kit generate",
+    "token:create": "node scripts/create-agent-token.mjs"
   },
   "dependencies": {
     "@clerk/backend": "^3.10.0",

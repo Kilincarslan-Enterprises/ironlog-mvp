@@ -1,0 +1,4 @@
+# Runtime (Pages Functions) — read by the API at request time.
+# Copy to `.dev.vars` (gitignored) and fill in for local dev.
+CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key
+CLERK_SECRET_KEY=sk_test_your_clerk_secret_key
