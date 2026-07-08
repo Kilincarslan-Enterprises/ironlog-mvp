@@ -479,8 +479,19 @@ export const notifications = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    // `kind` is plain `text` in D1 (no CHECK constraint — see migrations/0000),
+    // so the enum here is TypeScript-level validation only. Adding "suggestion"
+    // requires no migration: the column already accepts any string.
     kind: text("kind", {
-      enum: ["goal", "supplement", "weight", "workout", "meal", "system"],
+      enum: [
+        "goal",
+        "supplement",
+        "weight",
+        "workout",
+        "meal",
+        "system",
+        "suggestion",
+      ],
     }).notNull(),
     title: text("title").notNull(),
     body: text("body").notNull(),

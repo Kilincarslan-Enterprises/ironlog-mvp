@@ -13,6 +13,8 @@ import user from "./routes/user";
 import nutrition from "./routes/nutrition";
 import notifications from "./routes/notifications";
 import agent from "./routes/agent";
+import agentV1 from "./routes/agent-v1";
+import { indexHandler as agentV1Index } from "./routes/agent-v1";
 
 /**
  * The shared IronLog API Hono application.
@@ -58,3 +60,27 @@ app.route("/user", user);
 app.route("/nutrition", nutrition);
 app.route("/notifications", notifications);
 app.route("/agent", agent);
+
+// ---------------------------------------------------------------------------
+// Agent REST API surface — /api/agent/v1/...
+//
+// Dedicated surface for external agents (KILA-124). The resource modules are
+// the SAME Hono routers the UI uses, re-mounted under /agent/v1 — the global
+// auth guard already resolves an agent API token to the owning user, so an
+// agent authenticated with its token gets full read+write parity with the UI,
+// scoped to that user. agentV1 adds the v1 index + suggestions endpoint.
+// The proposal/confirmation flow (Step 3) is pending a D1 migration.
+// ---------------------------------------------------------------------------
+app.route("/agent/v1", agentV1);
+// Trailing-slash form of the v1 index (Hono serves the bare prefix without
+// the slash via the mount above; this covers `/api/agent/v1/` explicitly).
+app.get("/agent/v1/", agentV1Index);
+app.route("/agent/v1/dashboard", dashboard);
+app.route("/agent/v1/food", food);
+app.route("/agent/v1/training", training);
+app.route("/agent/v1/supplements", supplements);
+app.route("/agent/v1/weight", weight);
+app.route("/agent/v1/goals", goals);
+app.route("/agent/v1/user", user);
+app.route("/agent/v1/nutrition", nutrition);
+app.route("/agent/v1/notifications", notifications);
