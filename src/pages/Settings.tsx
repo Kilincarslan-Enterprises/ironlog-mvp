@@ -13,7 +13,7 @@ import { Loading, ErrorState } from "../components/States";
 import Modal from "../components/Modal";
 
 export default function Settings() {
-  const [user, setUser] = useState<User | null>(null);
+  const [, setUser] = useState<User | null>(null);
   const [tokens, setTokens] = useState<AgentToken[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -260,7 +260,7 @@ export default function Settings() {
       </section>
 
       {/* Create Token Modal */}
-      <Modal isOpen={isTokenModalOpen} onClose={() => setIsTokenModalOpen(false)} title="Neuer API Key">
+      <Modal open={isTokenModalOpen} onClose={() => setIsTokenModalOpen(false)} title="Neuer API Key">
         {!createdSecret ? (
           <form onSubmit={handleCreateToken} className="space-y-4">
             <div>
