@@ -102,6 +102,8 @@ CLERK_SECRET_KEY=sk_test_...
 
 ## Deployment
 
+**Live URL:** https://ironlog-mvp.pages.dev/
+
 This project deploys to **Cloudflare Pages**. Two supported paths:
 
 ### A. GitHub Actions (recommended, automated)
@@ -388,6 +390,12 @@ npm run db:migrate:local # apply locally
 │   ├── sw.js
 │   └── icons/
 ├── src/                     # React frontend
+├── cli/                     # IronLog CLI (zero-dep Node.js, for humans & AI agents)
+│   ├── ironlog.mjs          # CLI entry point (all API endpoints)
+│   ├── bin.mjs              # bin wrapper
+│   ├── SKILL.md             # AI agent skill reference
+│   ├── AGENTS.md            # Agent operations guide
+│   └── CLAUDE.md            # Claude Code guide
 ├── .github/workflows/deploy.yml
 ├── scripts/create-agent-token.mjs
 ├── wrangler.toml
@@ -395,3 +403,64 @@ npm run db:migrate:local # apply locally
 ├── vite.config.ts
 └── package.json
 ```
+
+---
+
+## CLI
+
+IronLog ships with a zero-dependency CLI (`cli/ironlog.mjs`) that wraps every API
+endpoint. Designed for both humans and AI agents (Gideon, Claude Code, Codex, etc.).
+
+### Quick start
+
+```bash
+# 1. Login (stores token in ~/.ironlog/config.json)
+node cli/ironlog.mjs login <your-api-token>
+
+# 2. Verify
+node cli/ironlog.mjs health
+node cli/ironlog.mjs whoami
+
+# 3. Use any command (--json for raw JSON output)
+node cli/ironlog.mjs dashboard --json
+node cli/ironlog.mjs weight create '{"weight":82.3,"unit":"kg"}' --json
+```
+
+### Token
+
+Get an API token from the IronLog app Settings page, or create one via CLI:
+
+```bash
+node cli/ironlog.mjs tokens create --label "Agent"
+```
+
+Alternatively set the `IRONLOG_TOKEN` env var (no login needed).
+
+### Commands
+
+| Category | Commands |
+| --- | --- |
+| System | `health`, `whoami`, `dashboard`, `user update` |
+| Tokens | `tokens list`, `tokens create`, `tokens revoke` |
+| Food | `food presets`, `food presets create/update/delete`, `food meals`, `food meals create/delete`, `nutrition daily` |
+| Training | `training exercises`, `training plans`, `training sessions`, `training sessions add-set/update-set/delete-set`, `training prs` |
+| Supplements | `supplements`, `supplements create/update/delete`, `supplements logs`, `supplements logs create/delete` |
+| Weight | `weight`, `weight create/update/delete` |
+| Goals | `goals`, `goals create/update/status`, `goals progress`, `goals progress add` |
+| Notifications | `notifications`, `notifications create`, `notifications read` |
+
+Run `node cli/ironlog.mjs help` for full usage.
+
+### AI Agent integration
+
+The CLI ships with three agent-facing docs:
+
+| File | Purpose |
+| --- | --- |
+| `cli/SKILL.md` | Full command reference for AI agents |
+| `cli/AGENTS.md` | Operational patterns, workflows, error handling |
+| `cli/CLAUDE.md` | Claude Code / Cursor / Copilot quick guide |
+
+To use the IronLog CLI as a Hermes Agent skill, copy or symlink `cli/SKILL.md`
+into your skills directory. The skill is self-contained and references the CLI
+at `cli/ironlog.mjs` in the repo.
