@@ -229,6 +229,37 @@ food.post("/meals", async (c) => {
   return c.json({ meal: completeMeal });
 });
 
+// Update a meal (name, note, loggedAt). Scoped to owner.
+food.patch("/meals/:id", async (c) => {
+  const user = getCtxUser(c);
+  const db = getDb(c.env.DB);
+  const id = c.req.param("id");
+
+  const existing = await db.query.meals.findFirst({
+    where: and(eq(meals.id, id), eq(meals.userId, user.id)),
+  });
+  if (!existing) return c.json({ error: "Not found" }, 404);
+
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const updates: Record<string, unknown> = { updatedAt: new Date() };
+  if (typeof body.name === "string") updates.name = body.name;
+  if (body.note !== undefined) updates.note = body.note || null;
+  if (body.loggedAt !== undefined) updates.loggedAt = new Date(body.loggedAt as string | number);
+
+  const [updated] = await db
+    .update(meals)
+    .set(updates)
+    .where(and(eq(meals.id, id), eq(meals.userId, user.id)))
+    .returning();
+
+  const completeMeal = await db.query.meals.findFirst({
+    where: eq(meals.id, id),
+    with: { items: true },
+  });
+
+  return c.json({ meal: completeMeal });
+});
+
 // Remove a single item from a meal (scoped to user via meal ownership)
 food.delete("/meals/:id/items/:itemId", async (c) => {
   const user = getCtxUser(c);

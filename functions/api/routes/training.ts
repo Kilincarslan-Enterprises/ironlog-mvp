@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, eq, desc, ne, gte, lte } from "drizzle-orm";
+import { and, eq, desc, ne, gte, lte, inArray } from "drizzle-orm";
 import { getDb } from "../db";
 import {
   exercises,
@@ -269,6 +269,18 @@ training.post("/workout-plans", async (c) => {
 
   const entries = Array.isArray(body.exercises) ? body.exercises : [];
   if (entries.length > 0) {
+    // Validate all exerciseIds exist and belong to the user before inserting.
+    const exerciseIds = [...new Set(entries.map((e: any) => e.exerciseId))];
+    const validExercises = await db.query.exercises.findMany({
+      where: and(eq(exercises.userId, user.id), inArray(exercises.id, exerciseIds)),
+    });
+    const validIds = new Set(validExercises.map((e) => e.id));
+    const invalid = exerciseIds.filter((id) => !validIds.has(id));
+    if (invalid.length > 0) {
+      await db.delete(workoutPlans).where(eq(workoutPlans.id, planId));
+      return c.json({ error: `Exercise not found: ${invalid.join(", ")}` }, 400);
+    }
+
     await db.insert(workoutPlanExercises).values(
       entries.map((e: any, i: number) => ({
         id: crypto.randomUUID(),
@@ -319,6 +331,17 @@ training.put("/workout-plans/:id", async (c) => {
   if (Array.isArray(body.exercises)) {
     await db.delete(workoutPlanExercises).where(eq(workoutPlanExercises.planId, id));
     if (body.exercises.length > 0) {
+      // Validate all exerciseIds before inserting.
+      const exerciseIds = [...new Set(body.exercises.map((e: any) => e.exerciseId))];
+      const validExercises = await db.query.exercises.findMany({
+        where: and(eq(exercises.userId, user.id), inArray(exercises.id, exerciseIds)),
+      });
+      const validIds = new Set(validExercises.map((e) => e.id));
+      const invalid = exerciseIds.filter((id) => !validIds.has(id));
+      if (invalid.length > 0) {
+        return c.json({ error: `Exercise not found: ${invalid.join(", ")}` }, 400);
+      }
+
       await db.insert(workoutPlanExercises).values(
         body.exercises.map((e: any, i: number) => ({
           id: crypto.randomUUID(),
@@ -340,6 +363,21 @@ training.put("/workout-plans/:id", async (c) => {
     with: { exercises: true },
   });
   return c.json({ plan: complete });
+});
+
+/** DELETE /api/training/workout-plans/:id — delete a plan (scoped to owner). */
+training.delete("/workout-plans/:id", async (c) => {
+  const user = getCtxUser(c);
+  const db = getDb(c.env.DB);
+  const id = c.req.param("id");
+
+  const deleted = await db
+    .delete(workoutPlans)
+    .where(and(eq(workoutPlans.id, id), eq(workoutPlans.userId, user.id)))
+    .returning();
+
+  if (deleted.length === 0) return c.json({ error: "Not found" }, 404);
+  return c.json({ success: true });
 });
 
 /**
@@ -460,6 +498,21 @@ training.patch("/workout-sessions/:id", async (c) => {
     .returning();
 
   return c.json({ session: updated });
+});
+
+/** DELETE /api/training/workout-sessions/:id — delete a session (scoped to owner). */
+training.delete("/workout-sessions/:id", async (c) => {
+  const user = getCtxUser(c);
+  const db = getDb(c.env.DB);
+  const id = c.req.param("id");
+
+  const deleted = await db
+    .delete(workoutSessions)
+    .where(and(eq(workoutSessions.id, id), eq(workoutSessions.userId, user.id)))
+    .returning();
+
+  if (deleted.length === 0) return c.json({ error: "Not found" }, 404);
+  return c.json({ success: true });
 });
 
 // ---------------------------------------------------------------------------

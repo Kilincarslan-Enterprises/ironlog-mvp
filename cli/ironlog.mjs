@@ -314,6 +314,16 @@ const commands = {
     },
   },
 
+  "food meals update": {
+    desc: "Update a meal (name, note, loggedAt)",
+    usage: 'ironlog food meals update <id> \'{"name":"Mittagessen"}\'',
+    run: async (args, flags, jsonFlag) => {
+      const body = parseJsonArg(args[1]);
+      const data = await api(`/food/meals/${args[0]}`, "PATCH", body);
+      output(data, jsonFlag);
+    },
+  },
+
   "food meals delete": {
     desc: "Delete a meal (or single item)",
     usage: "ironlog food meals delete <mealId> [--item <itemId>]",
@@ -373,6 +383,15 @@ const commands = {
     },
   },
 
+  "training plans delete": {
+    desc: "Delete a workout plan",
+    usage: "ironlog training plans delete <id>",
+    run: async (args, flags, jsonFlag) => {
+      const data = await api(`/training/workout-plans/${args[0]}`, "DELETE");
+      output(data, jsonFlag);
+    },
+  },
+
   // -- Training sessions --
   "training sessions": {
     desc: "List workout sessions",
@@ -389,6 +408,15 @@ const commands = {
     run: async (args, flags, jsonFlag) => {
       const body = parseJsonArg(args[0]);
       const data = await api("/training/workout-sessions", "POST", body);
+      output(data, jsonFlag);
+    },
+  },
+
+  "training sessions delete": {
+    desc: "Delete a workout session",
+    usage: "ironlog training sessions delete <id>",
+    run: async (args, flags, jsonFlag) => {
+      const data = await api(`/training/workout-sessions/${args[0]}`, "DELETE");
       output(data, jsonFlag);
     },
   },
