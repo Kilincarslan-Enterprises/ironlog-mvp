@@ -698,17 +698,9 @@ async function main() {
 
   const { args, flags, jsonFlag } = parseArgs(argv);
 
-  // Match multi-word commands (longest first)
-  // Try 2-word match
-  if (args.length >= 2) {
-    const twoWord = `${args[0]} ${args[1]}`;
-    if (commands[twoWord]) {
-      await commands[twoWord].run(args.slice(2), flags, jsonFlag);
-      return;
-    }
-  }
-
-  // Try 3-word match
+  // Match multi-word commands (longest first: 3-word → 2-word → 1-word).
+  // This ensures "training exercises create" matches the POST handler, not
+  // the "training exercises" GET handler.
   if (args.length >= 3) {
     const threeWord = `${args[0]} ${args[1]} ${args[2]}`;
     if (commands[threeWord]) {
@@ -717,7 +709,14 @@ async function main() {
     }
   }
 
-  // Try 1-word match
+  if (args.length >= 2) {
+    const twoWord = `${args[0]} ${args[1]}`;
+    if (commands[twoWord]) {
+      await commands[twoWord].run(args.slice(2), flags, jsonFlag);
+      return;
+    }
+  }
+
   if (commands[args[0]]) {
     await commands[args[0]].run(args.slice(1), flags, jsonFlag);
     return;
