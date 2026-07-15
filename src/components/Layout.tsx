@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { UserButton } from "@clerk/clerk-react";
+import { Settings } from "lucide-react";
+import { Link } from "react-router-dom";
 import BottomNav from "./BottomNav";
 
 interface LayoutProps {
@@ -23,7 +25,14 @@ export function Layout({ title = "IronLog", headerRight, children }: LayoutProps
           <h1 className="text-lg font-bold text-text-strong tracking-tight">
             {title}
           </h1>
-          {headerRight ?? <UserButton afterSignOutUrl="/" />}
+          {headerRight ?? (
+            <div className="flex items-center gap-3">
+              <Link to="/settings" className="text-muted hover:text-text transition-colors p-1" title="Einstellungen">
+                <Settings size={20} />
+              </Link>
+              <UserButton afterSignOutUrl="/" />
+            </div>
+          )}
         </div>
       </header>
 

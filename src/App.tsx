@@ -9,6 +9,7 @@ import Training from "./pages/Training";
 import Supplements from "./pages/Supplements";
 import Weight from "./pages/Weight";
 import Goals from "./pages/Goals";
+import Settings from "./pages/Settings";
 import { setTokenGetter } from "./lib/api";
 
 /**
@@ -51,6 +52,7 @@ function App() {
             <Route path="/supplements" element={<Supplements />} />
             <Route path="/weight" element={<Weight />} />
             <Route path="/goals" element={<Goals />} />
+            <Route path="/settings" element={<Settings />} />
           </Routes>
         </Layout>
       </SignedIn>

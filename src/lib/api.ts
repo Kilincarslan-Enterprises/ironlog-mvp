@@ -205,6 +205,17 @@ export interface Notification {
   actionUrl: string | null;
 }
 
+export interface AgentToken {
+  id: string;
+  userId: string;
+  label: string;
+  scopes: string;
+  lastUsedAt: string | number | null;
+  expiresAt: string | number | null;
+  isRevoked: boolean;
+  createdAt: string | number;
+}
+
 // ---------------------------------------------------------------------------
 // Token plumbing
 // ---------------------------------------------------------------------------
@@ -526,3 +537,18 @@ export const createNotification = (data: Partial<Notification> & { title: string
 
 export const markNotificationRead = (id: string) =>
   request<{ notification: Notification }>(`/notifications/${id}/read`, "POST");
+
+// ---------------------------------------------------------------------------
+// Agent Tokens
+// ---------------------------------------------------------------------------
+
+export const getAgentTokens = (includeRevoked = false) =>
+  request<{ tokens: AgentToken[] }>("/agent/tokens", "GET", undefined, {
+    all: includeRevoked ? "true" : undefined,
+  });
+
+export const createAgentToken = (data: { label: string; scopes?: string; expiresAt?: string | null }) =>
+  request<{ token: AgentToken; secret: string }>("/agent/tokens", "POST", data);
+
+export const deleteAgentToken = (id: string) =>
+  request<{ token: AgentToken }>(`/agent/tokens/${id}`, "DELETE");
