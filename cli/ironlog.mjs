@@ -14,7 +14,7 @@
  * Output: human-readable by default, raw JSON with --json flag
  */
 
-import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
@@ -174,7 +174,7 @@ const commands = {
   login: {
     desc: "Store your API token (run once)",
     usage: "ironlog login <token> [--base-url <url>]",
-    run: async (args, flags, jsonFlag) => {
+    run: async (args, flags, _jsonFlag) => {
       const token = args[0];
       if (!token) {
         console.error("Usage: ironlog login <token> [--base-url <url>]");
@@ -699,8 +699,6 @@ async function main() {
   const { args, flags, jsonFlag } = parseArgs(argv);
 
   // Match multi-word commands (longest first)
-  const sortedKeys = Object.keys(commands).sort((a, b) => b.split(" ").length - a.split(" ").length);
-
   // Try 2-word match
   if (args.length >= 2) {
     const twoWord = `${args[0]} ${args[1]}`;
