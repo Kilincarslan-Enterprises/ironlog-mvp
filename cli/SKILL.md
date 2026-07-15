@@ -58,6 +58,7 @@ ironlog food presets update <id> '{...}'    # Update preset
 ironlog food presets delete <id>            # Delete preset
 ironlog food meals [--date YYYY-MM-DD]      # List meals
 ironlog food meals create '{...}'          # Log a meal with items
+ironlog food meals update <id> '{...}'      # Update meal (name, note, loggedAt)
 ironlog food meals delete <id> [--item <itemId>]  # Delete meal or single item
 ironlog nutrition daily [--date YYYY-MM-DD] # Daily nutrition summary
 ```
@@ -67,9 +68,11 @@ ironlog nutrition daily [--date YYYY-MM-DD] # Daily nutrition summary
 ironlog training exercises                  # List exercises
 ironlog training exercises create '{...}'  # Create custom exercise
 ironlog training plans                      # List workout plans
-ironlog training plans create '{...}'      # Create workout plan
+ironlog training plans create '{...}'      # Create workout plan (with optional inline exercises)
+ironlog training plans delete <id>          # Delete a plan
 ironlog training sessions [--date DATE]    # List sessions
 ironlog training sessions create '{...}'   # Start a session
+ironlog training sessions delete <id>       # Delete a session
 ironlog training sessions update <id> '{...}'  # Update/end session
 ironlog training sessions add-set <sid> '{...}'       # Add a set
 ironlog training sessions update-set <sid> <setid> '{...}'  # Update a set

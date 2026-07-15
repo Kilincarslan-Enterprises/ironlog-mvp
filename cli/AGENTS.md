@@ -75,6 +75,9 @@ node cli/ironlog.mjs training sessions add-set "$SESSION_ID" '{"exerciseId":"...
 
 # End session
 node cli/ironlog.mjs training sessions update "$SESSION_ID" '{"endedAt":'$(date +%s)'000}' --json
+
+# Delete session (if needed)
+node cli/ironlog.mjs training sessions delete "$SESSION_ID" --json
 ```
 
 ### 5. Check & Log Supplements

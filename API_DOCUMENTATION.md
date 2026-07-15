@@ -181,6 +181,19 @@ Erfasst eine neue Mahlzeit inklusive einzelner Einträge (Items).
   ```
 - **Response:** `200 OK`
 
+### `PATCH /api/food/meals/:id`
+Aktualisiert eine Mahlzeit (name, note, loggedAt). Scoped to owner.
+- **Request Body:** (alle Felder optional)
+  ```json
+  {
+    "name": "Mittagessen",
+    "note": "Nach dem Training",
+    "loggedAt": 1719500000000
+  }
+  ```
+- **Response:** `200 OK` (Meal inkl. verschachtelter Items)
+- **Fehler:** `404 Not Found` wenn nicht vorhanden oder nicht Owner
+
 ### `DELETE /api/food/meals/:id/items/:itemId`
 Löscht ein einzelnes Item aus einer Mahlzeit.
 - **Response:** `200 OK`
@@ -216,6 +229,39 @@ Gibt die Trainingspläne des Benutzers zurück.
 
 ### `POST /api/training/workout-plans`
 Erstellt einen neuen Trainingsplan inkl. Übungen, Sets und Reps.
+- **Request Body:**
+  ```json
+  {
+    "name": "Push Day",
+    "schedule": "Mo/Mi/Fr",
+    "isActive": false,
+    "exercises": [
+      {
+        "exerciseId": "uuid",
+        "dayLabel": "A",
+        "orderIndex": 0,
+        "sets": 3,
+        "reps": "10",
+        "restSeconds": 90,
+        "rpe": 7.5
+      }
+    ]
+  }
+  ```
+- **Validierung:** Alle `exerciseId`s müssen existieren und dem User gehören. Ungültige IDs → `400 Bad Request` mit Fehlermeldung, Plan wird zurückgerollt.
+- **Response:** `200 OK` (Plan inkl. verschachtelter Exercises) · `400` bei ungültigen exerciseIds
+
+### `PUT /api/training/workout-plans/:id`
+Aktualisiert einen Plan (name, schedule) und ersetzt die Exercise-Zuweisungen, wenn `exercises` im Body enthalten ist. Gleiche FK-Validierung wie POST.
+- **Response:** `200 OK` · `404` wenn nicht vorhanden · `400` bei ungültigen exerciseIds
+
+### `DELETE /api/training/workout-plans/:id`
+Löscht einen Trainingsplan (inkl. aller Exercise-Zuweisungen via Cascade). Scoped to owner.
+- **Response:** `200 OK` · `404` wenn nicht vorhanden
+
+### `POST /api/training/workout-plans/:id/activate`
+Setzt einen Plan als aktiv und deaktiviert alle anderen Pläne des Users.
+- **Response:** `200 OK`
 
 ### `GET /api/training/workout-sessions`
 Gibt aufgezeichnete Trainingseinheiten zurück.
@@ -226,6 +272,10 @@ Startet eine neue Trainingseinheit.
 
 ### `PATCH /api/training/workout-sessions/:id`
 Beendet/Aktualisiert eine Trainingseinheit.
+
+### `DELETE /api/training/workout-sessions/:id`
+Löscht eine Trainingseinheit (inkl. aller Sets via Cascade). Scoped to owner.
+- **Response:** `200 OK` · `404` wenn nicht vorhanden
 
 ### `POST /api/training/workout-sessions/:sessionId/sets`
 Fügt einer aktiven Session ein ausgeführtes Set hinzu.

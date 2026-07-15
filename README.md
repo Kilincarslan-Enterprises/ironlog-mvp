@@ -307,6 +307,9 @@ Defaults to today. → `{ "meals": [ /* meals with nested `items` */ ] }`
 ```
 → `{ "meal": { /* meal with `items` */ } }`
 
+#### `PATCH /api/food/meals/:id`
+Update meal metadata (name, note, loggedAt). Does not modify items. → `{ "meal": { } }` · `404` if not owned.
+
 #### `DELETE /api/food/meals/:id/items/:itemId`
 Remove one item from a meal. → `{ "success": true }` · `404` if not owned/found.
 
@@ -328,26 +331,122 @@ Daily nutrition summary aggregated from meal items. Defaults to today.
 ### Training
 
 #### `GET /api/training/exercises`
-→ `{ "exercises": [] }` (stub — backing store pending; see KILA-187)
+→ `{ "exercises": [ /* user's own + public exercises from others */ ] }`
+
+#### `POST /api/training/exercises`
+Create a custom exercise. Body: `{ name, category, muscleGroup?, equipment?, instructions?, isPublic? }`.
+→ `{ "exercise": { /* created row */ } }`
+
+#### `GET /api/training/exercises/:id/history`
+Sets logged for an exercise over time (weight progression), oldest → newest.
+
+#### `GET /api/training/exercises/:id/prs`
+Personal records for one exercise: max weight, max reps, max volume.
+
+#### `GET /api/training/workout-plans`
+→ `{ "plans": [ /* plans with nested `exercises` (plan assignments) */ ] }`
+
+#### `POST /api/training/workout-plans`
+Create a plan with optional inline exercise assignments. Validates all `exerciseId`s exist and belong to the user — `400` on invalid IDs (plan is rolled back).
+```json
+{
+  "name": "Push Day", "schedule": "Mo/Mi/Fr", "isActive": false,
+  "exercises": [
+    { "exerciseId": "<uuid>", "dayLabel": "A", "sets": 3, "reps": "10", "restSeconds": 90, "rpe": 7.5 }
+  ]
+}
+```
+→ `{ "plan": { /* plan with `exercises` */ } }`
+
+#### `PUT /api/training/workout-plans/:id`
+Edit plan name/schedule. If `exercises` array is provided, replaces all exercise assignments (same FK validation as POST). → `{ "plan": { } }`
+
+#### `DELETE /api/training/workout-plans/:id`
+Delete a plan (cascades to exercise assignments). → `{ "success": true }` · `404` if not owned.
+
+#### `POST /api/training/workout-plans/:id/activate`
+Set a plan as the active one (deactivates all others). → `{ "plan": { } }`
+
+#### `GET /api/training/workout-sessions?date=YYYY-MM-DD`
+Sessions for a day (defaults to today in user's tz), with nested `sets`. → `{ "sessions": [ ] }`
+
+#### `POST /api/training/workout-sessions`
+Start a session. Body: `{ name?, planId?, startedAt? }`. → `{ "session": { } }`
+
+#### `PATCH /api/training/workout-sessions/:id`
+Finish/update a session. Body: `{ endedAt?, durationSeconds?, notes?, name? }`. Auto-computes `durationSeconds` from `startedAt` when omitted.
+
+#### `DELETE /api/training/workout-sessions/:id`
+Delete a session (cascades to sets). → `{ "success": true }` · `404` if not owned.
+
+#### `POST /api/training/workout-sessions/:id/sets`
+Add a set. Body: `{ exerciseId, reps?, weight?, weightUnit?, durationSeconds?, distance?, distanceUnit?, rpe?, isWarmup?, isDropset? }`.
+
+#### `PATCH /api/training/workout-sessions/:id/sets/:setId`
+Update a set (same fields, all optional).
+
+#### `DELETE /api/training/workout-sessions/:id/sets/:setId`
+Delete a set. → `{ "success": true }`
+
+#### `GET /api/training/personal-records`
+Best (max weight) per exercise across all sessions. → `{ "records": [ ] }`
 
 ### Supplements
 
 #### `GET /api/supplements`
-→ `{ "supplements": [] }` (stub — see KILA-188)
+→ `{ "supplements": [ /* active supplements */ ] }` · `?all=true` includes inactive
+
+#### `POST /api/supplements`
+Create a supplement. Body: `{ name, form?, unitDose?, doseUnit?, dailyFrequency?, reminderTimes?, isActive? }`.
+
+#### `PATCH /api/supplements/:id`
+Update a supplement (same fields, all optional).
+
+#### `DELETE /api/supplements/:id`
+Delete a supplement. → `{ "success": true }`
+
+#### `GET /api/supplements/logs?date=YYYY-MM-DD`
+Supplement intake logs for a day (defaults to today). → `{ "logs": [ ] }`
+
+#### `POST /api/supplements/logs`
+Log an intake. Body: `{ supplementId, dose?, doseUnit?, takenAt?, note? }`. Inherits dose/doseUnit from the supplement when omitted.
+
+#### `DELETE /api/supplements/logs/:id`
+Delete a log entry. → `{ "success": true }`
 
 ### Weight
 
 #### `GET /api/weight`
-→ `{ "entries": [] }` (stub — see KILA-188)
+Weight entries. `?range=7d|30d|90d|all` (default `30d`). → `{ "entries": [ ] }`
+
+#### `POST /api/weight`
+Log a weight entry. Body: `{ weight, unit?, measuredAt?, bodyFatPercentage?, note? }`.
+
+#### `PATCH /api/weight/:id`
+Update a weight entry (same fields, all optional).
+
+#### `DELETE /api/weight/:id`
+Delete a weight entry. → `{ "success": true }`
 
 ### Goals
 
-#### `GET /api/goals`
-→ `{ "goals": [] }` (stub — see KILA-188)
+#### `GET /api/goals?status=active`
+List goals, optionally filtered by status. → `{ "goals": [ ] }`
 
-> Stubs return empty arrays and are owned by sibling issues (KILA-187/KILA-188).
-> Their routes are registered and auth-gated; the storage layer is filled in by
-> those tickets.
+#### `POST /api/goals`
+Create a goal. Body: `{ title, category, direction?, targetValue?, targetUnit?, deadline?, status? }`.
+
+#### `PATCH /api/goals/:id`
+Update a goal (same fields, all optional).
+
+#### `POST /api/goals/:id/status`
+Change goal status. Body: `{ status: "active"|"paused"|"achieved"|"abandoned" }`.
+
+#### `GET /api/goals/:id/progress`
+Progress entries for a goal, oldest → newest. → `{ "progress": [ ] }`
+
+#### `POST /api/goals/:id/progress`
+Add a progress entry. Body: `{ value, unit?, recordedAt?, note? }`. → `{ "progress": { } }`
 
 ---
 
@@ -442,8 +541,8 @@ Alternatively set the `IRONLOG_TOKEN` env var (no login needed).
 | --- | --- |
 | System | `health`, `whoami`, `dashboard`, `user update` |
 | Tokens | `tokens list`, `tokens create`, `tokens revoke` |
-| Food | `food presets`, `food presets create/update/delete`, `food meals`, `food meals create/delete`, `nutrition daily` |
-| Training | `training exercises`, `training plans`, `training sessions`, `training sessions add-set/update-set/delete-set`, `training prs` |
+| Food | `food presets`, `food presets create/update/delete`, `food meals`, `food meals create/update/delete`, `nutrition daily` |
+| Training | `training exercises`, `training exercises create`, `training plans`, `training plans create/delete`, `training sessions`, `training sessions create/delete`, `training sessions update`, `training sessions add-set/update-set/delete-set`, `training prs` |
 | Supplements | `supplements`, `supplements create/update/delete`, `supplements logs`, `supplements logs create/delete` |
 | Weight | `weight`, `weight create/update/delete` |
 | Goals | `goals`, `goals create/update/status`, `goals progress`, `goals progress add` |
