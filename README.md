@@ -27,6 +27,9 @@ npx wrangler d1 create ironlog-mvp-db
 # 3. Apply migrations locally
 npm run db:migrate:local
 
+# 3b. Apply migrations to the remote (production) D1
+npx wrangler d1 migrations apply ironlog-mvp-db --remote
+
 # 4. Copy env template and fill in your Clerk keys
 cp .env.example .env            # build-time VITE_* vars for the frontend
 cp .dev.vars.example .dev.vars  # runtime secret vars for Pages Functions
