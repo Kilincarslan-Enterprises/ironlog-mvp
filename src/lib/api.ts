@@ -407,6 +407,12 @@ export const updateWorkoutPlan = (
 export const activateWorkoutPlan = (id: string) =>
   request<{ plan: WorkoutPlan }>(`/training/workout-plans/${id}/activate`, "POST");
 
+export const deleteWorkoutPlan = (id: string) =>
+  request<{ success: boolean }>(`/training/workout-plans/${id}`, "DELETE");
+
+export const deleteExercise = (id: string) =>
+  request<{ success: boolean }>(`/training/exercises/${id}`, "DELETE");
+
 // ---------------------------------------------------------------------------
 // Training: sessions & sets
 // ---------------------------------------------------------------------------
