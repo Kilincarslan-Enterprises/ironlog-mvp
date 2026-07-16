@@ -14,6 +14,8 @@ import user from "./routes/user";
 import nutrition from "./routes/nutrition";
 import notifications from "./routes/notifications";
 import agent from "./routes/agent";
+import schedule from "./routes/schedule";
+import machines from "./routes/machines";
 
 const app = new Hono<AppEnv>().basePath('/api');
 
@@ -48,5 +50,7 @@ app.route("/user", user);
 app.route("/nutrition", nutrition);
 app.route("/notifications", notifications);
 app.route("/agent", agent);
+app.route("/schedule", schedule);
+app.route("/machines", machines);
 
 export const onRequest = handle(app);

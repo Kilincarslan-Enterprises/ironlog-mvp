@@ -661,6 +661,136 @@ const commands = {
       output(data, jsonFlag);
     },
   },
+
+  // -- Schedule --
+  "schedule": {
+    desc: "List weekly schedule template",
+    run: async (args, flags, jsonFlag) => {
+      const data = await api("/schedule");
+      output(data, jsonFlag);
+    },
+  },
+
+  "schedule set": {
+    desc: "Replace weekly schedule template",
+    usage: 'ironlog schedule set \'[{"dayOfWeek":1,"label":"Push Day","planId":"..."},{"dayOfWeek":2,"label":"Rest Day"}]\'',
+    run: async (args, flags, jsonFlag) => {
+      const body = parseJsonArg(args[0]);
+      const data = await api("/schedule", "PUT", body);
+      output(data, jsonFlag);
+    },
+  },
+
+  "schedule today": {
+    desc: "Show what's scheduled for today",
+    run: async (args, flags, jsonFlag) => {
+      const data = await api("/schedule/today");
+      output(data, jsonFlag);
+    },
+  },
+
+  "schedule week": {
+    desc: "Show this week's schedule with overrides",
+    run: async (args, flags, jsonFlag) => {
+      const data = await api("/schedule/week");
+      output(data, jsonFlag);
+    },
+  },
+
+  "schedule override": {
+    desc: "Create or update a schedule override for a date",
+    usage: 'ironlog schedule override \'{"date":"2024-07-16","label":"Rest Day"}\'',
+    run: async (args, flags, jsonFlag) => {
+      const body = parseJsonArg(args[0]);
+      const data = await api("/schedule/override", "POST", body);
+      output(data, jsonFlag);
+    },
+  },
+
+  "schedule override delete": {
+    desc: "Remove a schedule override for a date",
+    usage: "ironlog schedule override delete <YYYY-MM-DD>",
+    run: async (args, flags, jsonFlag) => {
+      const data = await api(`/schedule/override/${args[0]}`, "DELETE");
+      output(data, jsonFlag);
+    },
+  },
+
+  // -- Machines --
+  "machines": {
+    desc: "List machines",
+    usage: "ironlog machines [--muscleGroup chest]",
+    run: async (args, flags, jsonFlag) => {
+      const data = await api("/machines", "GET", undefined, { muscleGroup: flags.muscleGroup });
+      output(data, jsonFlag);
+    },
+  },
+
+  "machines create": {
+    desc: "Create a machine",
+    usage: 'ironlog machines create \'{"name":"Leg Press","muscleGroup":"legs"}\'',
+    run: async (args, flags, jsonFlag) => {
+      const body = parseJsonArg(args[0]);
+      const data = await api("/machines", "POST", body);
+      output(data, jsonFlag);
+    },
+  },
+
+  "machines update": {
+    desc: "Update a machine",
+    usage: 'ironlog machines update <id> \'{"name":"..."}\'',
+    run: async (args, flags, jsonFlag) => {
+      const body = parseJsonArg(args[1]);
+      const data = await api(`/machines/${args[0]}`, "PUT", body);
+      output(data, jsonFlag);
+    },
+  },
+
+  "machines delete": {
+    desc: "Delete a machine",
+    usage: "ironlog machines delete <id>",
+    run: async (args, flags, jsonFlag) => {
+      const data = await api(`/machines/${args[0]}`, "DELETE");
+      output(data, jsonFlag);
+    },
+  },
+
+  "machines logs": {
+    desc: "List machine log history",
+    usage: "ironlog machines logs <id> [--limit 30]",
+    run: async (args, flags, jsonFlag) => {
+      const data = await api(`/machines/${args[0]}/logs`, "GET", undefined, { limit: flags.limit });
+      output(data, jsonFlag);
+    },
+  },
+
+  "machines log": {
+    desc: "Log a weight entry for a machine",
+    usage: 'ironlog machines log <id> \'{"weight":80,"reps":10,"sets":3}\'',
+    run: async (args, flags, jsonFlag) => {
+      const body = parseJsonArg(args[1]);
+      const data = await api(`/machines/${args[0]}/logs`, "POST", body);
+      output(data, jsonFlag);
+    },
+  },
+
+  "machines log delete": {
+    desc: "Delete a machine log entry",
+    usage: "ironlog machines log delete <id> <logId>",
+    run: async (args, flags, jsonFlag) => {
+      const data = await api(`/machines/${args[0]}/logs/${args[1]}`, "DELETE");
+      output(data, jsonFlag);
+    },
+  },
+
+  "machines progress": {
+    desc: "Show progression summary for a machine",
+    usage: "ironlog machines progress <id>",
+    run: async (args, flags, jsonFlag) => {
+      const data = await api(`/machines/${args[0]}/progress`);
+      output(data, jsonFlag);
+    },
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -688,6 +818,8 @@ Commands:`);
     "Weight": ["weight", "weight create", "weight update", "weight delete"],
     "Goals": ["goals", "goals create", "goals update", "goals status", "goals progress", "goals progress add"],
     "Notifications": ["notifications", "notifications create", "notifications read"],
+    "Schedule": ["schedule", "schedule set", "schedule today", "schedule week", "schedule override", "schedule override delete"],
+    "Machines": ["machines", "machines create", "machines update", "machines delete", "machines logs", "machines log", "machines log delete", "machines progress"],
   };
 
   for (const [group, cmds] of Object.entries(groups)) {

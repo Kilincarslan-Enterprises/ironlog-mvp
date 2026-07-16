@@ -101,6 +101,36 @@ node cli/ironlog.mjs goals progress add <goalId> '{"value":81.5}' --json
 node cli/ironlog.mjs goals status <goalId> achieved
 ```
 
+### 7. Check Today's Schedule
+```bash
+# What's scheduled today
+node cli/ironlog.mjs schedule today --json
+
+# This week's overview
+node cli/ironlog.mjs schedule week --json
+
+# Override today (e.g. rest day)
+node cli/ironlog.mjs schedule override '{"date":"2026-07-15","label":"Rest Day"}' --json
+
+# Remove override (revert to template)
+node cli/ironlog.mjs schedule override delete 2026-07-15 --json
+```
+
+### 8. Log Machine Weight
+```bash
+# List machines
+node cli/ironlog.mjs machines --json
+
+# Log weight for a machine
+node cli/ironlog.mjs machines log <machineId> '{"weight":60,"reps":10,"sets":3}' --json
+
+# Check progression
+node cli/ironlog.mjs machines progress <machineId> --json
+
+# View log history
+node cli/ironlog.mjs machines logs <machineId> --json
+```
+
 ## Error Handling
 
 - HTTP 401: Token invalid/expired → re-login or check `IRONLOG_TOKEN`

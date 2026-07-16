@@ -498,3 +498,104 @@ export const notifications = sqliteTable(
 export const notificationsRelations = relations(notifications, ({ one }) => ({
   user: one(users, { fields: [notifications.userId], references: [users.id] }),
 }));
+
+// ---------------------------------------------------------------------------
+// weekly schedule template — maps weekday → workout plan (or rest)
+// ---------------------------------------------------------------------------
+
+export const scheduleTemplates = sqliteTable(
+  "schedule_templates",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // 0=Sunday, 1=Monday, ..., 6=Saturday
+    dayOfWeek: integer("day_of_week").notNull(),
+    // Reference to workout plan, or null for rest day
+    planId: text("plan_id").references(() => workoutPlans.id, { onDelete: "set null" }),
+    // Label like "Push Day", "Rest Day", "Pull Day"
+    label: text("label").notNull(),
+    // Override date (YYYY-MM-DD) — when set, this overrides the template for that specific date
+    overrideDate: text("override_date"),
+    // What to do instead (only meaningful when overrideDate is set)
+    overrideLabel: text("override_label"),
+    overridePlanId: text("override_plan_id").references(() => workoutPlans.id, { onDelete: "set null" }),
+    ...timestamps,
+  },
+  (t) => [
+    index("schedule_templates_user_id_idx").on(t.userId),
+    index("schedule_templates_day_idx").on(t.dayOfWeek),
+    index("schedule_templates_override_date_idx").on(t.overrideDate),
+  ]
+);
+
+export const scheduleTemplatesRelations = relations(scheduleTemplates, ({ one }) => ({
+  user: one(users, { fields: [scheduleTemplates.userId], references: [users.id] }),
+  plan: one(workoutPlans, { fields: [scheduleTemplates.planId], references: [workoutPlans.id] }),
+}));
+
+// ---------------------------------------------------------------------------
+// machines / gym equipment registry
+// ---------------------------------------------------------------------------
+
+export const machines = sqliteTable(
+  "machines",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    muscleGroup: text("muscle_group"),
+    // URL to machine photo (user uploads or provides URL)
+    imageUrl: text("image_url"),
+    // Notes about the machine (setup, adjustments, etc.)
+    notes: text("notes"),
+    ...timestamps,
+  },
+  (t) => [
+    index("machines_user_id_idx").on(t.userId),
+    index("machines_muscle_group_idx").on(t.muscleGroup),
+  ]
+);
+
+export const machinesRelations = relations(machines, ({ one, many }) => ({
+  user: one(users, { fields: [machines.userId], references: [users.id] }),
+  logs: many(machineLogs),
+}));
+
+// ---------------------------------------------------------------------------
+// machine logs — weight per machine per day (quick logging)
+// ---------------------------------------------------------------------------
+
+export const machineLogs = sqliteTable(
+  "machine_logs",
+  {
+    id: text("id").primaryKey(),
+    machineId: text("machine_id")
+      .notNull()
+      .references(() => machines.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    weight: real("weight").notNull(),
+    weightUnit: text("weight_unit").notNull().default("kg"),
+    reps: integer("reps"),
+    sets: integer("sets").default(1),
+    // When the exercise was performed
+    loggedAt: integer("logged_at", { mode: "timestamp_ms" }).notNull(),
+    note: text("note"),
+    ...timestamps,
+  },
+  (t) => [
+    index("machine_logs_machine_id_idx").on(t.machineId),
+    index("machine_logs_user_id_idx").on(t.userId),
+    index("machine_logs_logged_at_idx").on(t.loggedAt),
+  ]
+);
+
+export const machineLogsRelations = relations(machineLogs, ({ one }) => ({
+  machine: one(machines, { fields: [machineLogs.machineId], references: [machines.id] }),
+  user: one(users, { fields: [machineLogs.userId], references: [users.id] }),
+}));

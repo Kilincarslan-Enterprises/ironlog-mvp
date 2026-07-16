@@ -391,6 +391,56 @@ Delete a set. → `{ "success": true }`
 #### `GET /api/training/personal-records`
 Best (max weight) per exercise across all sessions. → `{ "records": [ ] }`
 
+### Schedule
+
+Weekly template mapping weekday → workout plan, with per-date overrides for flexibility.
+
+#### `GET /api/schedule`
+→ `{ "schedule": [ { dayOfWeek, planId, label, ... } ] }`
+
+#### `PUT /api/schedule`
+Replace the entire weekly template. Body: array of `{ dayOfWeek, planId?, label }`.
+
+#### `GET /api/schedule/today`
+What's scheduled for today (timezone-aware). Checks overrides first. → `{ dayOfWeek, label, planId, plan?, isOverride, overrideDate? }`
+
+#### `GET /api/schedule/week`
+7 days for the current week with overrides applied. → `{ days: [ { date, dayOfWeek, label, planId, plan?, isOverride } ] }`
+
+#### `POST /api/schedule/override`
+Create/update an override for a specific date. Body: `{ date: "YYYY-MM-DD", label, planId? }`.
+
+#### `DELETE /api/schedule/override/:date`
+Remove an override (revert to template). → `{ "success": true }`
+
+### Machines
+
+Gym equipment registry with weight logging and progression tracking.
+
+#### `GET /api/machines?muscleGroup=chest`
+→ `{ "machines": [ { id, name, muscleGroup, imageUrl, notes } ] }`
+
+#### `POST /api/machines`
+Body: `{ name, muscleGroup?, imageUrl?, notes? }`. → `{ "machine": { } }`
+
+#### `PUT /api/machines/:id`
+Update a machine (same fields, all optional). → `{ "machine": { } }` · `404` if not owned.
+
+#### `DELETE /api/machines/:id`
+Delete a machine (cascades to logs). → `{ "success": true }`
+
+#### `GET /api/machines/:id/logs?limit=30`
+Log history for a machine (newest first). → `{ "logs": [ { weight, weightUnit, reps, sets, loggedAt, note } ] }`
+
+#### `POST /api/machines/:id/logs`
+Log a weight entry. Body: `{ weight, weightUnit?, reps?, sets?, loggedAt?, note? }`. → `{ "log": { } }`
+
+#### `DELETE /api/machines/:id/logs/:logId`
+Delete a log entry. → `{ "success": true }`
+
+#### `GET /api/machines/:id/progress`
+Progression summary: first log, latest log, delta, max weight, recent logs. → `{ machine, firstLog, latestLog, delta, maxWeight, recentLogs }`
+
 ### Supplements
 
 #### `GET /api/supplements`
@@ -543,6 +593,8 @@ Alternatively set the `IRONLOG_TOKEN` env var (no login needed).
 | Tokens | `tokens list`, `tokens create`, `tokens revoke` |
 | Food | `food presets`, `food presets create/update/delete`, `food meals`, `food meals create/update/delete`, `nutrition daily` |
 | Training | `training exercises`, `training exercises create`, `training plans`, `training plans create/delete`, `training sessions`, `training sessions create/delete`, `training sessions update`, `training sessions add-set/update-set/delete-set`, `training prs` |
+| Schedule | `schedule`, `schedule set`, `schedule today`, `schedule week`, `schedule override`, `schedule override delete` |
+| Machines | `machines`, `machines create/update/delete`, `machines logs`, `machines log`, `machines log delete`, `machines progress` |
 | Supplements | `supplements`, `supplements create/update/delete`, `supplements logs`, `supplements logs create/delete` |
 | Weight | `weight`, `weight create/update/delete` |
 | Goals | `goals`, `goals create/update/status`, `goals progress`, `goals progress add` |

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Play, Check, Flame, Trophy, History, ChevronRight, Trash2 } from "lucide-react";
+import {
+  Plus, Play, Check, Flame, Trophy, History, ChevronRight, Trash2,
+  Calendar, Dumbbell, TrendingUp,
+} from "lucide-react";
 import { Card } from "../components/Card";
 import { Modal } from "../components/Modal";
 import { Loading, ErrorState, EmptyState } from "../components/States";
@@ -15,36 +18,64 @@ import {
   getPersonalRecords,
   getExerciseHistory,
   createExercise,
+  getScheduleToday,
+  getScheduleWeek,
+  overrideSchedule,
+  deleteScheduleOverride,
+  getMachines,
+  createMachine,
+  logMachineWeight,
+  getMachineProgress,
+  deleteMachine,
   type Exercise,
   type WorkoutPlan,
   type WorkoutSession,
   type WorkoutSet,
+  type ScheduleToday,
+  type ScheduleWeekDay,
+  type Machine,
+  type MachineProgress,
 } from "../lib/api";
+
+const DAY_NAMES = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+const DAY_NAMES_FULL = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
 export default function Training() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [plans, setPlans] = useState<WorkoutPlan[]>([]);
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [records, setRecords] = useState<any[]>([]);
+  const [scheduleToday, setScheduleToday] = useState<ScheduleToday | null>(null);
+  const [scheduleWeek, setScheduleWeek] = useState<ScheduleWeekDay[]>([]);
+  const [machines, setMachines] = useState<Machine[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addSetOpen, setAddSetOpen] = useState(false);
   const [historyEx, setHistoryEx] = useState<Exercise | null>(null);
+  const [machineModal, setMachineModal] = useState<Machine | null>(null);
+  const [addMachineOpen, setAddMachineOpen] = useState(false);
+  const [overrideOpen, setOverrideOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [ex, pl, se, pr] = await Promise.all([
+      const [ex, pl, se, pr, st, sw, mc] = await Promise.all([
         getExercises(),
         getWorkoutPlans(),
         getWorkoutSessions(),
         getPersonalRecords(),
+        getScheduleToday(),
+        getScheduleWeek(),
+        getMachines(),
       ]);
       setExercises(ex.exercises);
       setPlans(pl.plans);
       setSessions(se.sessions);
       setRecords(pr.records || []);
+      setScheduleToday(st);
+      setScheduleWeek(sw.days || []);
+      setMachines(mc.machines || []);
     } catch (e: any) {
       setError(e?.message || "Training konnte nicht geladen werden.");
     } finally {
@@ -61,7 +92,7 @@ export default function Training() {
   const startSession = async (plan?: WorkoutPlan) => {
     try {
       const r = await startWorkoutSession({
-        name: plan?.name || "Workout",
+        name: plan?.name || scheduleToday?.label || "Workout",
         planId: plan?.id,
       });
       setSessions((prev) => [r.session, ...prev]);
@@ -116,11 +147,21 @@ export default function Training() {
     }
   };
 
-  /** Create an exercise and append it to the local list (used by AddSetModal). */
   const createExerciseLocal = useCallback(async (name: string) => {
     const r = await createExercise({ name, category: "strength" });
     setExercises((prev) => [...prev, r.exercise]);
     return r.exercise;
+  }, []);
+
+  const onMachineCreated = useCallback(async (name: string, muscleGroup?: string) => {
+    const r = await createMachine({ name, muscleGroup });
+    setMachines((prev) => [...prev, r.machine]);
+    return r.machine;
+  }, []);
+
+  const onMachineWeightLogged = useCallback(async (machineId: string, weight: number, reps?: number) => {
+    await logMachineWeight(machineId, { weight, reps });
+    // No need to reload machines list, the modal will refetch progress
   }, []);
 
   if (loading && sessions.length === 0 && plans.length === 0)
@@ -135,6 +176,53 @@ export default function Training() {
       <h1 className="text-xl font-bold text-text-strong">Training</h1>
       {error && <ErrorState message={error} onRetry={load} />}
 
+      {/* Today's schedule */}
+      {scheduleToday && (
+        <Card
+          title="Heute"
+          subtitle={DAY_NAMES_FULL[scheduleToday.dayOfWeek]}
+          action={
+            scheduleToday.isOverride ? (
+              <button
+                type="button"
+                onClick={() => setOverrideOpen(true)}
+                className="text-xs font-semibold text-warning"
+              >
+                ⚠ Überschrieben
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setOverrideOpen(true)}
+                className="text-xs font-semibold text-muted hover:text-accent"
+              >
+                Verschieben
+              </button>
+            )
+          }
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-lg font-bold text-text-strong">{scheduleToday.label}</p>
+              {scheduleToday.plan && (
+                <p className="text-sm text-muted mt-0.5">
+                  {scheduleToday.plan.name} · {scheduleToday.plan.exercises.length} Übung(en)
+                </p>
+              )}
+            </div>
+            {scheduleToday.label !== "Rest Day" && (
+              <button
+                type="button"
+                onClick={() => startSession(scheduleToday.plan || undefined)}
+                className="bg-accent text-white font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-accent-hover"
+              >
+                <Play size={16} /> Start
+              </button>
+            )}
+          </div>
+        </Card>
+      )}
+
       {/* Active session or start */}
       {activeSession ? (
         <ActiveSessionCard
@@ -146,16 +234,90 @@ export default function Training() {
           onShowHistory={(ex) => setHistoryEx(ex)}
         />
       ) : (
-        <Card title="Heute" subtitle="Noch kein Training">
+        !scheduleToday && (
+          <Card title="Heute" subtitle="Noch kein Training">
+            <button
+              type="button"
+              onClick={() => startSession(plans.find((p) => p.isActive))}
+              className="w-full bg-accent text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-accent-hover"
+            >
+              <Play size={18} /> Session starten
+            </button>
+          </Card>
+        )
+      )}
+
+      {/* Weekly schedule */}
+      {scheduleWeek.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold text-text-strong px-1 flex items-center gap-2">
+            <Calendar size={18} className="text-accent" /> Diese Woche
+          </h2>
+          <div className="grid grid-cols-7 gap-1.5">
+            {scheduleWeek.map((day, i) => (
+              <div
+                key={i}
+                className={`rounded-xl border p-2 text-center ${
+                  day.isOverride
+                    ? "border-warning bg-warning/5"
+                    : day.label === "Rest Day"
+                      ? "border-border-muted bg-bg"
+                      : "border-border bg-card"
+                }`}
+              >
+                <p className="text-xs text-muted">{DAY_NAMES[day.dayOfWeek]}</p>
+                <p className="text-xs font-semibold text-text mt-1 truncate">
+                  {day.label === "Rest Day" ? "Rest" : day.label.split(" ")[0]}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Machines gallery */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="text-lg font-bold text-text-strong flex items-center gap-2">
+            <Dumbbell size={18} className="text-accent" /> Geräte
+          </h2>
           <button
             type="button"
-            onClick={() => startSession(plans.find((p) => p.isActive))}
-            className="w-full bg-accent text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-accent-hover"
+            onClick={() => setAddMachineOpen(true)}
+            className="text-sm font-semibold text-accent hover:text-accent-hover flex items-center gap-1"
           >
-            <Play size={18} /> Session starten
+            <Plus size={16} /> Hinzufügen
           </button>
-        </Card>
-      )}
+        </div>
+        {machines.length === 0 ? (
+          <EmptyState title="Keine Geräte" hint="Füge Maschinen hinzu, um Gewichte zu loggen." />
+        ) : (
+          <div className="grid grid-cols-3 gap-2.5">
+            {machines.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setMachineModal(m)}
+                className="bg-card border border-border rounded-2xl overflow-hidden hover:bg-card-hover transition-colors text-left"
+              >
+                <div className="aspect-square bg-bg flex items-center justify-center overflow-hidden">
+                  {m.imageUrl ? (
+                    <img src={m.imageUrl} alt={m.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <Dumbbell size={28} className="text-muted" />
+                  )}
+                </div>
+                <div className="p-2">
+                  <p className="text-xs font-semibold text-text truncate">{m.name}</p>
+                  {m.muscleGroup && (
+                    <p className="text-[10px] text-muted truncate">{m.muscleGroup}</p>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Workout plans */}
       <section className="space-y-3">
@@ -244,9 +406,54 @@ export default function Training() {
       {historyEx && (
         <HistoryModal exercise={historyEx} onClose={() => setHistoryEx(null)} />
       )}
+
+      {machineModal && (
+        <MachineModal
+          machine={machineModal}
+          onClose={() => setMachineModal(null)}
+          onLogWeight={onMachineWeightLogged}
+          onDelete={async () => {
+            await deleteMachine(machineModal.id);
+            setMachines((prev) => prev.filter((m) => m.id !== machineModal.id));
+            setMachineModal(null);
+          }}
+        />
+      )}
+
+      {addMachineOpen && (
+        <AddMachineModal
+          onClose={() => setAddMachineOpen(false)}
+          onCreate={onMachineCreated}
+        />
+      )}
+
+      {overrideOpen && scheduleToday && (
+        <OverrideModal
+          onClose={() => setOverrideOpen(false)}
+          onOverride={async (label, planId) => {
+            const today = new Date().toISOString().slice(0, 10);
+            await overrideSchedule({ date: today, label, planId });
+            setOverrideOpen(false);
+            load();
+          }}
+          onRevert={async () => {
+            const today = new Date().toISOString().slice(0, 10);
+            await deleteScheduleOverride(today);
+            setOverrideOpen(false);
+            load();
+          }}
+          isOverride={scheduleToday.isOverride}
+          currentLabel={scheduleToday.label}
+          plans={plans}
+        />
+      )}
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Active session card
+// ---------------------------------------------------------------------------
 
 function ActiveSessionCard({
   session,
@@ -268,7 +475,6 @@ function ActiveSessionCard({
     ? Math.round((new Date(session.endedAt).getTime() - startedAt.getTime()) / 60000)
     : Math.max(0, Math.round((Date.now() - startedAt.getTime()) / 60000));
 
-  // Group sets by exercise
   const byExercise = new Map<string, WorkoutSet[]>();
   for (const set of session.sets) {
     const arr = byExercise.get(set.exerciseId) || [];
@@ -342,6 +548,350 @@ function ActiveSessionCard({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Machine modal — shows progress, history, and quick log
+// ---------------------------------------------------------------------------
+
+function MachineModal({
+  machine,
+  onClose,
+  onLogWeight,
+  onDelete,
+}: {
+  machine: Machine;
+  onClose: () => void;
+  onLogWeight: (machineId: string, weight: number, reps?: number) => Promise<void>;
+  onDelete: () => void;
+}) {
+  const [progress, setProgress] = useState<MachineProgress | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [weight, setWeight] = useState("");
+  const [reps, setReps] = useState("");
+  const [logging, setLogging] = useState(false);
+
+  const loadProgress = useCallback(async () => {
+    setLoading(true);
+    try {
+      const p = await getMachineProgress(machine.id);
+      setProgress(p);
+    } catch (e: any) {
+      setError(e?.message || "Fortschritt konnte nicht geladen werden.");
+    } finally {
+      setLoading(false);
+    }
+  }, [machine.id]);
+
+  useEffect(() => {
+    loadProgress();
+  }, [loadProgress]);
+
+  const submit = async () => {
+    if (!weight) return;
+    setLogging(true);
+    try {
+      await onLogWeight(machine.id, Number(weight), reps ? Number(reps) : undefined);
+      setWeight("");
+      setReps("");
+      await loadProgress();
+    } catch (e: any) {
+      setError(e?.message || "Log fehlgeschlagen.");
+    } finally {
+      setLogging(false);
+    }
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={machine.name}
+      footer={
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onDelete}
+            className="flex-1 bg-danger-soft border border-danger text-danger font-semibold py-2.5 rounded-xl text-sm"
+          >
+            Löschen
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={logging || !weight}
+            className="flex-[2] bg-accent text-white font-bold py-2.5 rounded-xl text-sm disabled:opacity-50"
+          >
+            {logging ? "…" : "Speichern"}
+          </button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        {machine.muscleGroup && (
+          <p className="text-sm text-muted">Muskelgruppe: {machine.muscleGroup}</p>
+        )}
+
+        {/* Quick log */}
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block">
+            <span className="text-xs text-muted">kg</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+              placeholder={progress?.latestLog ? String(progress.latestLog.weight) : "0"}
+              className="w-full mt-1 bg-bg border border-border rounded-xl px-3 py-2.5 text-sm text-text"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs text-muted">Reps</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={reps}
+              onChange={(e) => setReps(e.target.value)}
+              className="w-full mt-1 bg-bg border border-border rounded-xl px-3 py-2.5 text-sm text-text"
+            />
+          </label>
+        </div>
+
+        {/* Progress summary */}
+        {loading ? (
+          <Loading />
+        ) : error ? (
+          <ErrorState message={error} />
+        ) : progress ? (
+          <>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-bg rounded-xl p-3 text-center">
+                <p className="text-xs text-muted">Erstes</p>
+                <p className="text-lg font-bold text-text">
+                  {progress.firstLog ? `${progress.firstLog.weight}kg` : "—"}
+                </p>
+              </div>
+              <div className="bg-bg rounded-xl p-3 text-center">
+                <p className="text-xs text-muted">Letztes</p>
+                <p className="text-lg font-bold text-text">
+                  {progress.latestLog ? `${progress.latestLog.weight}kg` : "—"}
+                </p>
+              </div>
+              <div className="bg-bg rounded-xl p-3 text-center">
+                <p className="text-xs text-muted">Delta</p>
+                <p className={`text-lg font-bold ${progress.delta > 0 ? "text-success" : progress.delta < 0 ? "text-danger" : "text-muted"}`}>
+                  {progress.delta > 0 ? "+" : ""}{progress.delta}kg
+                </p>
+              </div>
+            </div>
+
+            {/* Max weight badge */}
+            <div className="flex items-center gap-2 text-sm">
+              <Trophy size={16} className="text-warning" />
+              <span className="text-muted">All-Time Max:</span>
+              <span className="font-bold text-text">{progress.maxWeight}kg</span>
+            </div>
+
+            {/* Recent logs */}
+            {progress.recentLogs.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-text mb-2 flex items-center gap-1">
+                  <TrendingUp size={14} className="text-accent" /> Verlauf
+                </h4>
+                <ul className="space-y-1">
+                  {progress.recentLogs.map((log) => (
+                    <li key={log.id} className="flex justify-between text-sm border-b border-border-muted py-2">
+                      <span className="text-muted">
+                        {new Date(log.loggedAt).toLocaleDateString("de-DE", { day: "2-digit", month: "short" })}
+                      </span>
+                      <span className="text-text">
+                        {log.weight}kg{log.reps ? ` × ${log.reps}` : ""}{log.sets > 1 ? ` · ${log.sets}x` : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        ) : null}
+      </div>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Add machine modal
+// ---------------------------------------------------------------------------
+
+function AddMachineModal({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void;
+  onCreate: (name: string, muscleGroup?: string) => Promise<Machine>;
+}) {
+  const [name, setName] = useState("");
+  const [muscleGroup, setMuscleGroup] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (!name.trim()) return;
+    setCreating(true);
+    try {
+      await onCreate(name.trim(), muscleGroup.trim() || undefined);
+      onClose();
+    } catch (e: any) {
+      setErr(e?.message || "Gerät konnte nicht angelegt werden.");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Gerät hinzufügen"
+      footer={
+        <button
+          type="button"
+          onClick={submit}
+          disabled={creating || !name.trim()}
+          className="w-full bg-accent text-white font-bold py-3 rounded-xl hover:bg-accent-hover disabled:opacity-50"
+        >
+          {creating ? "…" : "Anlegen"}
+        </button>
+      }
+    >
+      <div className="space-y-3">
+        <label className="block">
+          <span className="text-xs text-muted">Name</span>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="z. B. Butterfly"
+            className="w-full mt-1 bg-bg border border-border rounded-xl px-3 py-2.5 text-sm text-text"
+          />
+        </label>
+        <label className="block">
+          <span className="text-xs text-muted">Muskelgruppe</span>
+          <input
+            value={muscleGroup}
+            onChange={(e) => setMuscleGroup(e.target.value)}
+            placeholder="z. B. Brust"
+            className="w-full mt-1 bg-bg border border-border rounded-xl px-3 py-2.5 text-sm text-text"
+          />
+        </label>
+        <label className="block">
+          <span className="text-xs text-muted">Bild URL (optional)</span>
+          <input
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+            placeholder="https://…"
+            className="w-full mt-1 bg-bg border border-border rounded-xl px-3 py-2.5 text-sm text-text"
+          />
+        </label>
+        {err && <p className="text-sm text-danger">{err}</p>}
+      </div>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Override modal — swap today's plan
+// ---------------------------------------------------------------------------
+
+function OverrideModal({
+  onClose,
+  onOverride,
+  onRevert,
+  isOverride,
+  currentLabel,
+  plans,
+}: {
+  onClose: () => void;
+  onOverride: (label: string, planId?: string) => Promise<void>;
+  onRevert: () => Promise<void>;
+  isOverride: boolean;
+  currentLabel: string;
+  plans: WorkoutPlan[];
+}) {
+  const [label, setLabel] = useState("Rest Day");
+  const [planId, setPlanId] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    setSaving(true);
+    try {
+      await onOverride(label, planId || undefined);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Heute verschieben"
+      footer={
+        <div className="flex gap-2">
+          {isOverride && (
+            <button
+              type="button"
+              onClick={onRevert}
+              className="flex-1 bg-bg border border-border text-text py-2.5 rounded-xl text-sm font-semibold"
+            >
+              Zurücksetzen
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={submit}
+            disabled={saving}
+            className="flex-[2] bg-accent text-white font-bold py-2.5 rounded-xl text-sm disabled:opacity-50"
+          >
+            {saving ? "…" : "Überschreiben"}
+          </button>
+        </div>
+      }
+    >
+      <div className="space-y-3">
+        <p className="text-sm text-muted">
+          Aktuell: <span className="font-semibold text-text">{currentLabel}</span>
+        </p>
+        <label className="block">
+          <span className="text-xs text-muted">Neue Bezeichnung</span>
+          <input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="z. B. Rest Day, Push Day verschoben…"
+            className="w-full mt-1 bg-bg border border-border rounded-xl px-3 py-2.5 text-sm text-text"
+          />
+        </label>
+        <label className="block">
+          <span className="text-xs text-muted">Plan (optional)</span>
+          <select
+            value={planId}
+            onChange={(e) => setPlanId(e.target.value)}
+            className="w-full mt-1 bg-bg border border-border rounded-xl px-3 py-2.5 text-sm text-text"
+          >
+            <option value="">Kein Plan (Rest Day)</option>
+            {plans.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Add set modal (unchanged from original)
+// ---------------------------------------------------------------------------
+
 function AddSetModal({
   exercises,
   onClose,
@@ -393,8 +943,6 @@ function AddSetModal({
     }
   };
 
-  // Note: creating a new exercise here adds it locally; the parent list refreshes on reload.
-  // To keep the dropdown consistent, we close after add and rely on parent reload.
   return (
     <Modal
       open
@@ -522,6 +1070,10 @@ function AddSetModal({
     </Modal>
   );
 }
+
+// ---------------------------------------------------------------------------
+// History modal (unchanged from original)
+// ---------------------------------------------------------------------------
 
 function HistoryModal({ exercise, onClose }: { exercise: Exercise; onClose: () => void }) {
   const [history, setHistory] = useState<WorkoutSet[]>([]);

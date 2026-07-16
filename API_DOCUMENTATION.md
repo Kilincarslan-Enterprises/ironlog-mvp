@@ -388,3 +388,157 @@ Erstellt eine Benachrichtigung.
 
 ### `POST /api/notifications/:id/read`
 Markiert eine Benachrichtigung als gelesen.
+
+---
+
+## 10. Trainingsplan (Schedule)
+
+Das Schedule-System besteht aus einem wöchentlichen Template (ein Eintrag pro Wochentag) und optionalen Overrides für spezifische Daten.
+
+### `GET /api/schedule`
+Gibt das wöchentliche Template des Users zurück (7 Einträge, einer pro `dayOfWeek` 0=So..6=Sa).
+- **Response:** `200 OK`
+  ```json
+  {
+    "schedule": [
+      { "id": "uuid", "dayOfWeek": 1, "planId": "uuid", "label": "Push Day", "overrideDate": null, "overrideLabel": null, "overridePlanId": null }
+    ]
+  }
+  ```
+
+### `PUT /api/schedule`
+Ersetzt das gesamte wöchentliche Template. Alle bestehenden Einträge werden gelöscht und durch die neuen ersetzt.
+- **Request Body:** Array von Einträgen
+  ```json
+  [
+    { "dayOfWeek": 1, "planId": "uuid", "label": "Push Day" },
+    { "dayOfWeek": 2, "label": "Rest Day" },
+    { "dayOfWeek": 3, "planId": "uuid", "label": "Pull Day" }
+  ]
+  ```
+- **Response:** `200 OK` (Array der erstellten Einträge)
+
+### `GET /api/schedule/today`
+Gibt zurück, was heute ansteht (basierend auf `dayOfWeek` in der User-Zeitzone). Wenn ein Override für das heutige Datum existiert, wird dieser zurückgegeben.
+- **Response:** `200 OK`
+  ```json
+  {
+    "dayOfWeek": 1,
+    "label": "Push Day",
+    "planId": "uuid",
+    "plan": { "id": "uuid", "name": "Push Day", "exercises": [...] },
+    "isOverride": false,
+    "overrideDate": null
+  }
+  ```
+
+### `GET /api/schedule/week`
+Gibt die 7 Tage der aktuellen Woche zurück (mit Overrides angewendet).
+- **Response:** `200 OK`
+  ```json
+  {
+    "days": [
+      { "date": "2026-07-15", "dayOfWeek": 1, "label": "Push Day", "planId": "uuid", "plan": null, "isOverride": false }
+    ]
+  }
+  ```
+
+### `POST /api/schedule/override`
+Erstellt oder aktualisiert einen Override für ein spezifisches Datum. Wenn bereits ein Override für dieses Datum existiert, wird er aktualisiert.
+- **Request Body:**
+  ```json
+  {
+    "date": "2026-07-15",
+    "label": "Rest Day",
+    "planId": null
+  }
+  ```
+- **Response:** `200 OK` (der erstellte/aktualisierte Eintrag)
+
+### `DELETE /api/schedule/override/:date`
+Entfernt einen Override für ein spezifisches Datum (zurück zum Template).
+- **Response:** `200 OK`
+
+---
+
+## 11. Geräte (Machines)
+
+Geräte-Registry mit Weight-Logging und Progression-Tracking.
+
+### `GET /api/machines`
+Listet alle Geräte des Users. Optionaler Filter nach Muskelgruppe.
+- **Query Parameter:** `?muscleGroup=chest`
+- **Response:** `200 OK`
+  ```json
+  {
+    "machines": [
+      { "id": "uuid", "name": "Butterfly", "muscleGroup": "chest", "imageUrl": null, "notes": null }
+    ]
+  }
+  ```
+
+### `POST /api/machines`
+Erstellt ein neues Gerät.
+- **Request Body:**
+  ```json
+  {
+    "name": "Brustpresse",
+    "muscleGroup": "chest",
+    "imageUrl": "https://…",
+    "notes": "Sitz auf 3, Griffe eng"
+  }
+  ```
+- **Response:** `200 OK`
+
+### `PUT /api/machines/:id`
+Aktualisiert ein Gerät (scoped to owner).
+- **Response:** `200 OK` · `404` wenn nicht vorhanden
+
+### `DELETE /api/machines/:id`
+Löscht ein Gerät (inkl. aller Logs via Cascade).
+- **Response:** `200 OK` · `404` wenn nicht vorhanden
+
+### `GET /api/machines/:id/logs`
+Geräte-Log-Historie (neueste zuerst).
+- **Query Parameter:** `?limit=30` (Standard: 30)
+- **Response:** `200 OK`
+  ```json
+  {
+    "logs": [
+      { "id": "uuid", "machineId": "uuid", "weight": 60, "weightUnit": "kg", "reps": 10, "sets": 3, "loggedAt": 1719500000000, "note": null }
+    ]
+  }
+  ```
+
+### `POST /api/machines/:id/logs`
+Loggt ein Gewicht für ein Gerät.
+- **Request Body:**
+  ```json
+  {
+    "weight": 60,
+    "weightUnit": "kg",
+    "reps": 10,
+    "sets": 3,
+    "loggedAt": 1719500000000,
+    "note": "Fühlt sich leicht an"
+  }
+  ```
+- **Response:** `200 OK`
+
+### `DELETE /api/machines/:id/logs/:logId`
+Löscht einen Log-Eintrag.
+- **Response:** `200 OK`
+
+### `GET /api/machines/:id/progress`
+Progression-Zusammenfassung für ein Gerät.
+- **Response:** `200 OK`
+  ```json
+  {
+    "machine": { "id": "uuid", "name": "Brustpresse", ... },
+    "firstLog": { "weight": 55, "loggedAt": ... },
+    "latestLog": { "weight": 60, "loggedAt": ... },
+    "delta": 5,
+    "maxWeight": 62.5,
+    "recentLogs": [ ... ]
+  }
+  ```

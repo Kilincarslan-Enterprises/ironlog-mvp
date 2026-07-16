@@ -80,6 +80,28 @@ ironlog training sessions delete-set <sid> <setid>   # Delete a set
 ironlog training prs                        # Personal records
 ```
 
+### Schedule
+```
+ironlog schedule                            # List weekly template
+ironlog schedule set '[...]'               # Set weekly template (JSON array)
+ironlog schedule today                      # What's scheduled today
+ironlog schedule week                       # This week's schedule
+ironlog schedule override '{...}'           # Override a specific date
+ironlog schedule override delete <date>      # Remove override (YYYY-MM-DD)
+```
+
+### Machines
+```
+ironlog machines [--muscleGroup chest]      # List machines
+ironlog machines create '{...}'             # Create machine
+ironlog machines update <id> '{...}'        # Update machine
+ironlog machines delete <id>                # Delete machine
+ironlog machines logs <id> [--limit 30]     # Machine log history
+ironlog machines log <id> '{...}'           # Log weight for a machine
+ironlog machines log delete <id> <logId>    # Delete a machine log
+ironlog machines progress <id>             # Progression summary for a machine
+```
+
 ### Supplements
 ```
 ironlog supplements [--all]                 # List supplements

@@ -551,4 +551,112 @@ export const createAgentToken = (data: { label: string; scopes?: string; expires
   request<{ token: AgentToken; secret: string }>("/agent/tokens", "POST", data);
 
 export const deleteAgentToken = (id: string) =>
-  request<{ token: AgentToken }>(`/agent/tokens/${id}`, "DELETE");
+  request<{ token: AgentToken }>(`/agent/tokens/${id}`, "DELETE");
+
+// ---------------------------------------------------------------------------
+// Schedule (weekly template + overrides)
+// ---------------------------------------------------------------------------
+
+export interface ScheduleEntry {
+  id: string;
+  dayOfWeek: number;
+  planId: string | null;
+  label: string;
+  overrideDate: string | null;
+  overrideLabel: string | null;
+  overridePlanId: string | null;
+}
+
+export interface ScheduleToday {
+  dayOfWeek: number;
+  label: string;
+  planId: string | null;
+  plan: WorkoutPlan | null;
+  isOverride: boolean;
+  overrideDate: string | null;
+}
+
+export interface ScheduleWeekDay {
+  date: string;
+  dayOfWeek: number;
+  label: string;
+  planId: string | null;
+  plan: WorkoutPlan | null;
+  isOverride: boolean;
+}
+
+export const getSchedule = () =>
+  request<{ schedule: ScheduleEntry[] }>("/schedule");
+
+export const setSchedule = (entries: Array<{ dayOfWeek: number; planId?: string; label: string }>) =>
+  request<{ schedule: ScheduleEntry[] }>("/schedule", "PUT", entries);
+
+export const getScheduleToday = () =>
+  request<ScheduleToday>("/schedule/today");
+
+export const getScheduleWeek = () =>
+  request<{ days: ScheduleWeekDay[] }>("/schedule/week");
+
+export const overrideSchedule = (data: { date: string; label: string; planId?: string }) =>
+  request<{ entry: ScheduleEntry }>("/schedule/override", "POST", data);
+
+export const deleteScheduleOverride = (date: string) =>
+  request<{ success: boolean }>(`/schedule/override/${date}`, "DELETE");
+
+// ---------------------------------------------------------------------------
+// Machines (gym equipment registry + logs)
+// ---------------------------------------------------------------------------
+
+export interface Machine {
+  id: string;
+  userId: string;
+  name: string;
+  muscleGroup: string | null;
+  imageUrl: string | null;
+  notes: string | null;
+}
+
+export interface MachineLog {
+  id: string;
+  machineId: string;
+  userId: string;
+  weight: number;
+  weightUnit: string;
+  reps: number | null;
+  sets: number;
+  loggedAt: string | number;
+  note: string | null;
+}
+
+export interface MachineProgress {
+  machine: Machine;
+  firstLog: MachineLog | null;
+  latestLog: MachineLog | null;
+  delta: number;
+  maxWeight: number;
+  recentLogs: MachineLog[];
+}
+
+export const getMachines = (muscleGroup?: string) =>
+  request<{ machines: Machine[] }>("/machines", "GET", undefined, { muscleGroup });
+
+export const createMachine = (data: Partial<Machine> & { name: string }) =>
+  request<{ machine: Machine }>("/machines", "POST", data);
+
+export const updateMachine = (id: string, data: Partial<Machine>) =>
+  request<{ machine: Machine }>(`/machines/${id}`, "PUT", data);
+
+export const deleteMachine = (id: string) =>
+  request<{ success: boolean }>(`/machines/${id}`, "DELETE");
+
+export const getMachineLogs = (id: string, limit?: number) =>
+  request<{ logs: MachineLog[] }>(`/machines/${id}/logs`, "GET", undefined, { limit: limit?.toString() });
+
+export const logMachineWeight = (id: string, data: { weight: number; weightUnit?: string; reps?: number; sets?: number; loggedAt?: number; note?: string }) =>
+  request<{ log: MachineLog }>(`/machines/${id}/logs`, "POST", data);
+
+export const deleteMachineLog = (machineId: string, logId: string) =>
+  request<{ success: boolean }>(`/machines/${machineId}/logs/${logId}`, "DELETE");
+
+export const getMachineProgress = (id: string) =>
+  request<MachineProgress>(`/machines/${id}/progress`);
