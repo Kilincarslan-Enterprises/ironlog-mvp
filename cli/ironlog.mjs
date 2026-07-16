@@ -364,6 +364,15 @@ const commands = {
     },
   },
 
+  "training exercises delete": {
+    desc: "Delete an exercise",
+    usage: "ironlog training exercises delete <id>",
+    run: async (args, flags, jsonFlag) => {
+      const data = await api(`/training/exercises/${args[0]}`, "DELETE");
+      output(data, jsonFlag);
+    },
+  },
+
   // -- Training plans --
   "training plans": {
     desc: "List workout plans",
