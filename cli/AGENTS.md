@@ -102,6 +102,9 @@ node cli/ironlog.mjs goals progress add <goalId> '{"value":81.5}' --json
 
 # Mark achieved
 node cli/ironlog.mjs goals status <goalId> achieved
+
+# Delete a goal
+node cli/ironlog.mjs goals delete <goalId> --json
 ```
 
 ### 7. Check Today's Schedule
@@ -118,6 +121,9 @@ node cli/ironlog.mjs schedule override '{"date":"2026-07-15","label":"Rest Day"}
 # Remove override (revert to template)
 node cli/ironlog.mjs schedule override delete 2026-07-15 --json
 ```
+
+> **Pitfall:** `schedule set` erwartet `dayOfWeek` (Integer 0–6, 0=Sunday), nicht `day`.
+> Beispiel: `[{"dayOfWeek":1,"label":"Push Day"},{"dayOfWeek":2,"label":"Rest Day"}]`
 
 ### 8. Log Machine Weight
 ```bash

@@ -60,4 +60,19 @@ notificationsRoute.post("/:id/read", async (c) => {
   return c.json({ notification: updated });
 });
 
+/** DELETE /api/notifications/:id — delete a notification (scoped to owner). */
+notificationsRoute.delete("/:id", async (c) => {
+  const user = getCtxUser(c);
+  const db = getDb(c.env.DB);
+  const id = c.req.param("id");
+
+  const deleted = await db
+    .delete(notifications)
+    .where(and(eq(notifications.id, id), eq(notifications.userId, user.id)))
+    .returning();
+
+  if (deleted.length === 0) return c.json({ error: "Not found" }, 404);
+  return c.json({ success: true });
+});
+
 export default notificationsRoute;

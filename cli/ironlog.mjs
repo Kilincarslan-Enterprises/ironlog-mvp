@@ -364,6 +364,16 @@ const commands = {
     },
   },
 
+  "training exercises update": {
+    desc: "Update an exercise",
+    usage: 'ironlog training exercises update <id> \'{"name":"New Name"}\'',
+    run: async (args, flags, jsonFlag) => {
+      const body = parseJsonArg(args[1]);
+      const data = await api(`/training/exercises/${args[0]}`, "PUT", body);
+      output(data, jsonFlag);
+    },
+  },
+
   "training exercises delete": {
     desc: "Delete an exercise",
     usage: "ironlog training exercises delete <id>",
@@ -388,6 +398,16 @@ const commands = {
     run: async (args, flags, jsonFlag) => {
       const body = parseJsonArg(args[0]);
       const data = await api("/training/workout-plans", "POST", body);
+      output(data, jsonFlag);
+    },
+  },
+
+  "training plans update": {
+    desc: "Update a workout plan",
+    usage: 'ironlog training plans update <id> \'{"name":"New Name","exercises":[...]}\'',
+    run: async (args, flags, jsonFlag) => {
+      const body = parseJsonArg(args[1]);
+      const data = await api(`/training/workout-plans/${args[0]}`, "PUT", body);
       output(data, jsonFlag);
     },
   },
@@ -623,6 +643,15 @@ const commands = {
     },
   },
 
+  "goals delete": {
+    desc: "Delete a goal",
+    usage: "ironlog goals delete <id>",
+    run: async (args, flags, jsonFlag) => {
+      const data = await api(`/goals/${args[0]}`, "DELETE");
+      output(data, jsonFlag);
+    },
+  },
+
   "goals progress": {
     desc: "View goal progress history",
     usage: "ironlog goals progress <id>",
@@ -667,6 +696,15 @@ const commands = {
     usage: "ironlog notifications read <id>",
     run: async (args, flags, jsonFlag) => {
       const data = await api(`/notifications/${args[0]}/read`, "POST");
+      output(data, jsonFlag);
+    },
+  },
+
+  "notifications delete": {
+    desc: "Delete a notification",
+    usage: "ironlog notifications delete <id>",
+    run: async (args, flags, jsonFlag) => {
+      const data = await api(`/notifications/${args[0]}`, "DELETE");
       output(data, jsonFlag);
     },
   },
@@ -822,11 +860,11 @@ Commands:`);
     "System & User": ["health", "whoami", "dashboard", "user update"],
     "API Tokens": ["tokens list", "tokens create", "tokens revoke"],
     "Food & Nutrition": ["food presets", "food presets create", "food presets update", "food presets delete", "food meals", "food meals create", "food meals delete", "nutrition daily"],
-    "Training": ["training exercises", "training exercises create", "training plans", "training plans create", "training sessions", "training sessions create", "training sessions update", "training sessions add-set", "training sessions update-set", "training sessions delete-set", "training prs"],
+    "Training": ["training exercises", "training exercises create", "training exercises update", "training exercises delete", "training plans", "training plans create", "training plans update", "training plans delete", "training sessions", "training sessions create", "training sessions update", "training sessions add-set", "training sessions update-set", "training sessions delete-set", "training prs"],
     "Supplements": ["supplements", "supplements create", "supplements update", "supplements delete", "supplements logs", "supplements logs create", "supplements logs delete"],
     "Weight": ["weight", "weight create", "weight update", "weight delete"],
-    "Goals": ["goals", "goals create", "goals update", "goals status", "goals progress", "goals progress add"],
-    "Notifications": ["notifications", "notifications create", "notifications read"],
+    "Goals": ["goals", "goals create", "goals update", "goals status", "goals delete", "goals progress", "goals progress add"],
+    "Notifications": ["notifications", "notifications create", "notifications read", "notifications delete"],
     "Schedule": ["schedule", "schedule set", "schedule today", "schedule week", "schedule override", "schedule override delete"],
     "Machines": ["machines", "machines create", "machines update", "machines delete", "machines logs", "machines log", "machines log delete", "machines progress"],
   };

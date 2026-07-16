@@ -340,6 +340,9 @@ Create a custom exercise. Body: `{ name, category, muscleGroup?, equipment?, ins
 #### `DELETE /api/training/exercises/:id`
 Delete an exercise (scoped to owner). → `{ "success": true }` · `404` if not found.
 
+#### `PUT /api/training/exercises/:id`
+Update an exercise. Body: same fields as POST, all optional. → `{ "exercise": { } }`
+
 #### `GET /api/training/exercises/:id/history`
 Sets logged for an exercise over time (weight progression), oldest → newest.
 
@@ -495,11 +498,28 @@ Update a goal (same fields, all optional).
 #### `POST /api/goals/:id/status`
 Change goal status. Body: `{ status: "active"|"paused"|"achieved"|"abandoned" }`.
 
+#### `DELETE /api/goals/:id`
+Delete a goal (scoped to owner). → `{ "success": true }` · `404` if not found.
+
 #### `GET /api/goals/:id/progress`
 Progress entries for a goal, oldest → newest. → `{ "progress": [ ] }`
 
 #### `POST /api/goals/:id/progress`
 Add a progress entry. Body: `{ value, unit?, recordedAt?, note? }`. → `{ "progress": { } }`
+
+### Notifications
+
+#### `GET /api/notifications?unreadOnly=true`
+List notifications (newest first). → `{ "notifications": [ ] }`
+
+#### `POST /api/notifications`
+Create a notification. Body: `{ kind?, title, body, data?, actionUrl? }`. → `{ "notification": { } }`
+
+#### `POST /api/notifications/:id/read`
+Mark a notification as read. → `{ "notification": { } }`
+
+#### `DELETE /api/notifications/:id`
+Delete a notification (scoped to owner). → `{ "success": true }` · `404` if not found.
 
 ---
 
@@ -600,8 +620,8 @@ Alternatively set the `IRONLOG_TOKEN` env var (no login needed).
 | Machines | `machines`, `machines create/update/delete`, `machines logs`, `machines log`, `machines log delete`, `machines progress` |
 | Supplements | `supplements`, `supplements create/update/delete`, `supplements logs`, `supplements logs create/delete` |
 | Weight | `weight`, `weight create/update/delete` |
-| Goals | `goals`, `goals create/update/status`, `goals progress`, `goals progress add` |
-| Notifications | `notifications`, `notifications create`, `notifications read` |
+| Goals | `goals`, `goals create`, `goals update`, `goals status`, `goals delete`, `goals progress`, `goals progress add` |
+| Notifications | `notifications`, `notifications create`, `notifications read`, `notifications delete` |
 
 Run `node cli/ironlog.mjs help` for full usage.
 

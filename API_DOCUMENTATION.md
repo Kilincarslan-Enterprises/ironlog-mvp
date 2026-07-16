@@ -224,6 +224,9 @@ Gibt alle verfügbaren Übungen zurück (System + Eigene).
 ### `POST /api/training/exercises`
 Erstellt eine eigene Übung.
 
+### `PUT /api/training/exercises/:id`
+Aktualisiert eine Übung (gleiche Felder wie POST, alle optional).
+
 ### `DELETE /api/training/exercises/:id`
 Löscht eine Übung (scoped to owner).
 - **Response:** `200 OK` · `404` wenn nicht vorhanden
@@ -373,6 +376,10 @@ Aktualisiert ein Ziel.
 ### `POST /api/goals/:id/status`
 Ändert den Status eines Ziels (active, paused, achieved, abandoned).
 
+### `DELETE /api/goals/:id`
+Löscht ein Ziel (scoped to owner).
+- **Response:** `200 OK` · `404` wenn nicht vorhanden
+
 ### `GET /api/goals/:id/progress`
 Gibt den Fortschritts-Verlauf eines Ziels zurück.
 
@@ -392,6 +399,10 @@ Erstellt eine Benachrichtigung.
 
 ### `POST /api/notifications/:id/read`
 Markiert eine Benachrichtigung als gelesen.
+
+### `DELETE /api/notifications/:id`
+Löscht eine Benachrichtigung (scoped to owner).
+- **Response:** `200 OK` · `404` wenn nicht vorhanden
 
 ---
 

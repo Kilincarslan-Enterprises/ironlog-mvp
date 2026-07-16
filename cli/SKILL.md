@@ -67,9 +67,11 @@ ironlog nutrition daily [--date YYYY-MM-DD] # Daily nutrition summary
 ```
 ironlog training exercises                       # List exercises
 ironlog training exercises create '{...}'         # Create exercise
+ironlog training exercises update <id> '{...}'    # Update exercise
 ironlog training exercises delete <id>            # Delete exercise
 ironlog training plans                      # List workout plans
 ironlog training plans create '{...}'      # Create workout plan (with optional inline exercises)
+ironlog training plans update <id> '{...}' # Update workout plan (replaces exercises if provided)
 ironlog training plans delete <id>          # Delete a plan
 ironlog training sessions [--date DATE]    # List sessions
 ironlog training sessions create '{...}'   # Start a session
@@ -90,6 +92,8 @@ ironlog schedule week                       # This week's schedule
 ironlog schedule override '{...}'           # Override a specific date
 ironlog schedule override delete <date>      # Remove override (YYYY-MM-DD)
 ```
+> **Pitfall:** `schedule set` erwartet `dayOfWeek` (Integer 0–6, 0=Sunday, 1=Monday), nicht `day`.
+> Falscher Key (`day` statt `dayOfWeek`) führt zu HTTP 500.
 
 ### Machines
 ```
@@ -128,6 +132,7 @@ ironlog goals [--status active|paused|achieved|abandoned]  # List goals
 ironlog goals create '{...}'               # Create goal
 ironlog goals update <id> '{...}'          # Update goal
 ironlog goals status <id> <status>         # Change status
+ironlog goals delete <id>                  # Delete a goal
 ironlog goals progress <id>                 # View progress history
 ironlog goals progress add <id> '{...}'    # Add progress entry
 ```
@@ -137,6 +142,7 @@ ironlog goals progress add <id> '{...}'    # Add progress entry
 ironlog notifications [--unreadOnly]        # List notifications
 ironlog notifications create '{...}'       # Create notification
 ironlog notifications read <id>            # Mark as read
+ironlog notifications delete <id>          # Delete a notification
 ```
 
 ## JSON Body Examples
