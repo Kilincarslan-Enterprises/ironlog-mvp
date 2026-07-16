@@ -147,6 +147,21 @@ training.put("/exercises/:id", async (c) => {
   return c.json({ exercise: updated });
 });
 
+/** DELETE /api/training/exercises/:id — delete an exercise (scoped to owner). */
+training.delete("/exercises/:id", async (c) => {
+  const user = getCtxUser(c);
+  const db = getDb(c.env.DB);
+  const id = c.req.param("id");
+
+  const deleted = await db
+    .delete(exercises)
+    .where(and(eq(exercises.id, id), eq(exercises.userId, user.id)))
+    .returning();
+
+  if (deleted.length === 0) return c.json({ error: "Not found" }, 404);
+  return c.json({ success: true });
+});
+
 /**
  * GET /api/training/exercises/:id/history — sets logged for an exercise over
  * time (weight progression). Ordered oldest → newest so the UI can chart kg
