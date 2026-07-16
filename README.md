@@ -337,6 +337,9 @@ Daily nutrition summary aggregated from meal items. Defaults to today.
 Create a custom exercise. Body: `{ name, category, muscleGroup?, equipment?, instructions?, isPublic? }`.
 → `{ "exercise": { /* created row */ } }`
 
+#### `DELETE /api/training/exercises/:id`
+Delete an exercise (scoped to owner). → `{ "success": true }` · `404` if not found.
+
 #### `GET /api/training/exercises/:id/history`
 Sets logged for an exercise over time (weight progression), oldest → newest.
 
@@ -592,7 +595,7 @@ Alternatively set the `IRONLOG_TOKEN` env var (no login needed).
 | System | `health`, `whoami`, `dashboard`, `user update` |
 | Tokens | `tokens list`, `tokens create`, `tokens revoke` |
 | Food | `food presets`, `food presets create/update/delete`, `food meals`, `food meals create/update/delete`, `nutrition daily` |
-| Training | `training exercises`, `training exercises create`, `training plans`, `training plans create/delete`, `training sessions`, `training sessions create/delete`, `training sessions update`, `training sessions add-set/update-set/delete-set`, `training prs` |
+| Training | `training exercises`, `training exercises create/delete`, `training plans`, `training plans create/delete`, `training sessions`, `training sessions create/delete`, `training sessions update`, `training sessions add-set/update-set/delete-set`, `training prs` |
 | Schedule | `schedule`, `schedule set`, `schedule today`, `schedule week`, `schedule override`, `schedule override delete` |
 | Machines | `machines`, `machines create/update/delete`, `machines logs`, `machines log`, `machines log delete`, `machines progress` |
 | Supplements | `supplements`, `supplements create/update/delete`, `supplements logs`, `supplements logs create/delete` |

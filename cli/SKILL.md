@@ -65,8 +65,9 @@ ironlog nutrition daily [--date YYYY-MM-DD] # Daily nutrition summary
 
 ### Training
 ```
-ironlog training exercises                  # List exercises
-ironlog training exercises create '{...}'  # Create custom exercise
+ironlog training exercises                       # List exercises
+ironlog training exercises create '{...}'         # Create exercise
+ironlog training exercises delete <id>            # Delete exercise
 ironlog training plans                      # List workout plans
 ironlog training plans create '{...}'      # Create workout plan (with optional inline exercises)
 ironlog training plans delete <id>          # Delete a plan

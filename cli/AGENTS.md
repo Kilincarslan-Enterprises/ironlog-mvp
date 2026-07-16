@@ -78,6 +78,9 @@ node cli/ironlog.mjs training sessions update "$SESSION_ID" '{"endedAt":'$(date 
 
 # Delete session (if needed)
 node cli/ironlog.mjs training sessions delete "$SESSION_ID" --json
+
+# Delete an exercise (if needed)
+node cli/ironlog.mjs training exercises delete <exerciseId> --json
 ```
 
 ### 5. Check & Log Supplements

@@ -224,6 +224,10 @@ Gibt alle verfügbaren Übungen zurück (System + Eigene).
 ### `POST /api/training/exercises`
 Erstellt eine eigene Übung.
 
+### `DELETE /api/training/exercises/:id`
+Löscht eine Übung (scoped to owner).
+- **Response:** `200 OK` · `404` wenn nicht vorhanden
+
 ### `GET /api/training/workout-plans`
 Gibt die Trainingspläne des Benutzers zurück.
 
