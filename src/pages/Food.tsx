@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Search, ChevronDown, RefreshCw, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Plus, Search, ChevronDown, RefreshCw, Trash2, X, ScanLine, Camera } from "lucide-react";
 import { Card } from "../components/Card";
 import { Modal } from "../components/Modal";
 import { Loading, ErrorState, EmptyState } from "../components/States";
@@ -9,6 +9,7 @@ import {
   createFoodPreset,
   createMeal,
   deleteMeal,
+  lookupBarcode,
   type NutritionDaily,
   type FoodPreset,
   type Meal,
@@ -19,7 +20,6 @@ export default function Food() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-
   const [addOpen, setAddOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -35,31 +35,21 @@ export default function Food() {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const toggle = (id: string) =>
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
 
   const onMealDeleted = async (mealId: string) => {
-    try {
-      await deleteMeal(mealId);
-      await load();
-    } catch (e: any) {
-      setError(e?.message || "Mahlzeit konnte nicht gelöscht werden.");
-    }
+    try { await deleteMeal(mealId); await load(); }
+    catch (e: any) { setError(e?.message || "Mahlzeit konnte nicht gelöscht werden."); }
   };
 
-  const onMealAdded = async () => {
-    setAddOpen(false);
-    await load();
-  };
+  const onMealAdded = async () => { setAddOpen(false); await load(); };
 
   const totals = daily?.totals ?? { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sodium: 0 };
   const meals = daily?.meals ?? [];
@@ -68,12 +58,7 @@ export default function Food() {
     <div className="p-4 space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-text-strong">Essen</h1>
-        <button
-          type="button"
-          onClick={load}
-          aria-label="Aktualisieren"
-          className="text-muted hover:text-text p-2 -mr-2"
-        >
+        <button type="button" onClick={load} aria-label="Aktualisieren" className="text-muted hover:text-text p-2 -mr-2">
           <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
         </button>
       </div>
@@ -101,29 +86,18 @@ export default function Food() {
         ) : error && !daily ? (
           <ErrorState message={error} onRetry={load} />
         ) : meals.length === 0 ? (
-          <EmptyState
-            title="Noch keine Mahlzeiten heute"
-            hint="Tippe auf „Hinzufügen“, um etwas zu loggen."
-          />
+          <EmptyState title="Noch keine Mahlzeiten heute" hint={"Tippe auf „Hinzufügen“, um etwas zu loggen."} />
         ) : (
           meals.map((meal) => (
-            <MealRow
-              key={meal.id}
-              meal={meal}
-              expanded={expanded.has(meal.id)}
-              onToggle={() => toggle(meal.id)}
-              onDelete={() => onMealDeleted(meal.id)}
-            />
+            <MealRow key={meal.id} meal={meal} expanded={expanded.has(meal.id)}
+              onToggle={() => toggle(meal.id)} onDelete={() => onMealDeleted(meal.id)} />
           ))
         )}
       </section>
 
-      <button
-        type="button"
-        onClick={() => setAddOpen(true)}
+      <button type="button" onClick={() => setAddOpen(true)}
         className="fixed bottom-24 right-4 z-20 bg-accent text-white rounded-full w-14 h-14 shadow-lg flex items-center justify-center active:scale-95 transition-transform hover:bg-accent-hover"
-        aria-label="Mahlzeit hinzufügen"
-      >
+        aria-label="Mahlzeit hinzufügen">
         <Plus size={28} />
       </button>
 
@@ -132,36 +106,18 @@ export default function Food() {
   );
 }
 
-function MealRow({
-  meal,
-  expanded,
-  onToggle,
-  onDelete,
-}: {
-  meal: Meal;
-  expanded: boolean;
-  onToggle: () => void;
-  onDelete: () => void;
+function MealRow({ meal, expanded, onToggle, onDelete }: {
+  meal: Meal; expanded: boolean; onToggle: () => void; onDelete: () => void;
 }) {
   const total = meal.items.reduce(
-    (acc, it) => ({
-      calories: acc.calories + Number(it.calories || 0),
-      protein: acc.protein + Number(it.protein || 0),
-    }),
+    (acc, it) => ({ calories: acc.calories + Number(it.calories || 0), protein: acc.protein + Number(it.protein || 0) }),
     { calories: 0, protein: 0 },
   );
-  const time = new Date(meal.loggedAt).toLocaleTimeString("de-DE", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const time = new Date(meal.loggedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
 
   return (
     <Card>
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center justify-between text-left"
-      >
+      <button type="button" onClick={onToggle} className="w-full flex items-center justify-between text-left">
         <div className="min-w-0">
           <div className="font-semibold text-text-strong truncate">{meal.name}</div>
           <div className="text-xs text-muted mt-0.5">
@@ -169,28 +125,15 @@ function MealRow({
           </div>
         </div>
         <div className="flex items-center gap-1 text-muted">
-          <Trash2
-            size={18}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (confirm("Mahlzeit löschen?")) onDelete();
-            }}
-            className="hover:text-danger"
-          />
-          <ChevronDown
-            size={18}
-            className={expanded ? "rotate-180 transition-transform" : "transition-transform"}
-          />
+          <Trash2 size={18} onClick={(e) => { e.stopPropagation(); if (confirm("Mahlzeit löschen?")) onDelete(); }} className="hover:text-danger" />
+          <ChevronDown size={18} className={expanded ? "rotate-180 transition-transform" : "transition-transform"} />
         </div>
       </button>
       {expanded && meal.items.length > 0 && (
         <ul className="mt-3 space-y-1 border-t border-border-muted pt-3">
           {meal.items.map((it) => (
             <li key={it.id} className="flex justify-between text-sm">
-              <span className="text-text truncate">
-                {it.name} · {it.quantity}
-                {it.quantityUnit}
-              </span>
+              <span className="text-text truncate">{it.name} · {it.quantity}{it.quantityUnit}</span>
               <span className="text-muted shrink-0 ml-2">{Math.round(it.calories)} kcal</span>
             </li>
           ))}
@@ -199,6 +142,10 @@ function MealRow({
     </Card>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Add meal modal — with barcode scan + manual entry
+// ---------------------------------------------------------------------------
 
 function AddMealModal({ onClose, onAdded }: { onClose: () => void; onAdded: () => void }) {
   const [presets, setPresets] = useState<FoodPreset[]>([]);
@@ -209,20 +156,16 @@ function AddMealModal({ onClose, onAdded }: { onClose: () => void; onAdded: () =
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   useEffect(() => {
-    getFoodPresets()
-      .then((r) => setPresets(r.presets))
-      .catch((e) => setErr(e?.message || "Presets konnten nicht geladen werden."));
+    getFoodPresets().then((r) => setPresets(r.presets)).catch((e) => setErr(e?.message || "Presets konnten nicht geladen werden."));
   }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return presets;
-    return presets.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) || (p.brand || "").toLowerCase().includes(q),
-    );
+    return presets.filter((p) => p.name.toLowerCase().includes(q) || (p.brand || "").toLowerCase().includes(q));
   }, [presets, query]);
 
   const selectPreset = (p: FoodPreset) => {
@@ -231,128 +174,106 @@ function AddMealModal({ onClose, onAdded }: { onClose: () => void; onAdded: () =
     setErr(null);
   };
 
+  const onBarcodeScanned = (preset: FoodPreset) => {
+    setScannerOpen(false);
+    // Add to local list if not already there
+    setPresets((prev) => prev.find((p) => p.id === preset.id) ? prev : [preset, ...prev]);
+    selectPreset(preset);
+  };
+
   const submit = async () => {
-    if (!selected) {
-      setErr("Wähle zuerst ein Lebensmittel.");
-      return;
-    }
+    if (!selected) { setErr("Wähle zuerst ein Lebensmittel."); return; }
     const qty = Number(quantity);
-    if (!Number.isFinite(qty) || qty <= 0) {
-      setErr("Gültige Menge eingeben.");
-      return;
-    }
-    setSaving(true);
-    setErr(null);
+    if (!Number.isFinite(qty) || qty <= 0) { setErr("Gültige Menge eingeben."); return; }
+    setSaving(true); setErr(null);
     try {
       const scale = qty / selected.servingSize;
       await createMeal({
         name: mealName.trim() || selected.name,
         loggedAt: Date.now(),
-        items: [
-          {
-            foodPresetId: selected.id,
-            name: selected.name,
-            quantity: qty,
-            quantityUnit: selected.servingUnit,
-            calories: Math.round(selected.calories * scale),
-            protein: Math.round(selected.protein * scale),
-            carbs: Math.round(selected.carbs * scale),
-            fat: Math.round(selected.fat * scale),
-            fiber: selected.fiber ? Math.round(selected.fiber * scale) : 0,
-            sodium: selected.sodium ? Math.round(selected.sodium * scale) : 0,
-          },
-        ],
+        items: [{
+          foodPresetId: selected.id,
+          name: selected.name,
+          quantity: qty,
+          quantityUnit: selected.servingUnit,
+          calories: Math.round(selected.calories * scale),
+          protein: Math.round(selected.protein * scale),
+          carbs: Math.round(selected.carbs * scale),
+          fat: Math.round(selected.fat * scale),
+          fiber: selected.fiber ? Math.round(selected.fiber * scale) : 0,
+          sodium: selected.sodium ? Math.round(selected.sodium * scale) : 0,
+        }],
       });
       onAdded();
-    } catch (e: any) {
-      setErr(e?.message || "Speichern fehlgeschlagen.");
-    } finally {
-      setSaving(false);
-    }
+    } catch (e: any) { setErr(e?.message || "Speichern fehlgeschlagen."); }
+    finally { setSaving(false); }
   };
+
+  if (scannerOpen) {
+    return <BarcodeScannerModal onClose={() => setScannerOpen(false)} onFound={onBarcodeScanned} />;
+  }
 
   if (showNewForm) {
     return (
       <Modal open onClose={onClose} title="Neues Lebensmittel">
         <NewPresetForm
           onCancel={() => setShowNewForm(false)}
-          onCreated={(p) => {
-            setShowNewForm(false);
-            selectPreset(p);
-          }}
+          onCreated={(p) => { setShowNewForm(false); selectPreset(p); }}
         />
       </Modal>
     );
   }
 
   return (
-    <Modal
-      open
-      onClose={onClose}
-      title="Mahlzeit hinzufügen"
+    <Modal open onClose={onClose} title="Mahlzeit hinzufügen"
       footer={
-        <button
-          type="button"
-          onClick={submit}
-          disabled={saving || !selected}
-          className="w-full bg-accent text-white font-bold py-3 rounded-xl disabled:opacity-50 hover:bg-accent-hover transition-colors"
-        >
+        <button type="button" onClick={submit} disabled={saving || !selected}
+          className="w-full bg-accent text-white font-bold py-3 rounded-xl disabled:opacity-50 hover:bg-accent-hover transition-colors">
           {saving ? "Speichern…" : "Hinzufügen"}
         </button>
       }
     >
       <div className="space-y-3">
-        {/* Meal name (optional) */}
-        <input
-          value={mealName}
-          onChange={(e) => setMealName(e.target.value)}
+        <input value={mealName} onChange={(e) => setMealName(e.target.value)}
           placeholder="Mahlzeit-Name (optional)"
-          className="w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-sm text-text placeholder:text-muted"
-        />
+          className="w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-sm text-text placeholder:text-muted" />
+
+        {/* Barcode scan button */}
+        <button type="button" onClick={() => setScannerOpen(true)}
+          className="w-full bg-accent-soft border border-accent text-accent font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-accent/20 transition-colors">
+          <ScanLine size={18} /> Barcode scannen
+        </button>
 
         {/* Search */}
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+          <input value={query} onChange={(e) => setQuery(e.target.value)}
             placeholder="Lebensmittel suchen…"
-            className="w-full bg-bg border border-border rounded-xl pl-9 pr-3 py-2.5 text-sm text-text placeholder:text-muted"
-          />
+            className="w-full bg-bg border border-border rounded-xl pl-9 pr-3 py-2.5 text-sm text-text placeholder:text-muted" />
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowNewForm(true)}
-          className="w-full text-sm font-semibold text-accent hover:text-accent-hover text-left"
-        >
-          + Neues Lebensmittel anlegen
+        <button type="button" onClick={() => setShowNewForm(true)}
+          className="w-full text-sm font-semibold text-accent hover:text-accent-hover text-left">
+          + Neues Lebensmittel manuell anlegen
         </button>
 
         {/* Preset grid */}
         <div className="grid grid-cols-2 gap-2 max-h-[40dvh] overflow-y-auto">
           {filtered.length === 0 ? (
             <p className="col-span-2 text-center text-sm text-muted py-6">
-              Keine Treffer. Leg ein neues Lebensmittel an.
+              Keine Treffer. Scanne einen Barcode oder leg ein neues Lebensmittel an.
             </p>
           ) : (
             filtered.map((p) => {
               const active = selected?.id === p.id;
               return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => selectPreset(p)}
+                <button key={p.id} type="button" onClick={() => selectPreset(p)}
                   className={`text-left p-3 rounded-xl border transition-colors ${
-                    active
-                      ? "border-accent bg-accent-soft"
-                      : "border-border bg-bg hover:bg-card-hover"
-                  }`}
-                >
+                    active ? "border-accent bg-accent-soft" : "border-border bg-bg hover:bg-card-hover"
+                  }`}>
                   <div className="font-semibold text-sm text-text-strong truncate">{p.name}</div>
                   <div className="text-xs text-muted mt-0.5">
-                    {p.calories} kcal · {p.protein}g · pro {p.servingSize}
-                    {p.servingUnit}
+                    {p.calories} kcal · {p.protein}g · pro {p.servingSize}{p.servingUnit}
                   </div>
                 </button>
               );
@@ -364,47 +285,168 @@ function AddMealModal({ onClose, onAdded }: { onClose: () => void; onAdded: () =
           <div className="border-t border-border-muted pt-3">
             <label className="text-xs text-muted">Menge ({selected.servingUnit})</label>
             <div className="flex items-center gap-2 mt-1">
-              <input
-                type="number"
-                inputMode="decimal"
-                value={quantity}
+              <input type="number" inputMode="decimal" value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
-                className="flex-1 bg-bg border border-border rounded-xl px-3 py-2.5 text-sm text-text"
-              />
-              <button
-                type="button"
-                onClick={() => setSelected(null)}
-                className="text-muted hover:text-text p-2"
-                aria-label="Auswahl entfernen"
-              >
+                className="flex-1 bg-bg border border-border rounded-xl px-3 py-2.5 text-sm text-text" />
+              <button type="button" onClick={() => setSelected(null)}
+                className="text-muted hover:text-text p-2" aria-label="Auswahl entfernen">
                 <X size={18} />
               </button>
             </div>
           </div>
         )}
-
         {err && <p className="text-sm text-danger">{err}</p>}
       </div>
     </Modal>
   );
 }
 
-function NewPresetForm({
-  onCancel,
-  onCreated,
-}: {
-  onCancel: () => void;
-  onCreated: (p: FoodPreset) => void;
+// ---------------------------------------------------------------------------
+// Barcode scanner modal — camera + API lookup + manual barcode entry fallback
+// ---------------------------------------------------------------------------
+
+function BarcodeScannerModal({ onClose, onFound }: {
+  onClose: () => void;
+  onFound: (preset: FoodPreset) => void;
 }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [scanning, setScanning] = useState(false);
+  const [looking, setLooking] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [manualBarcode, setManualBarcode] = useState("");
+  const [searching, setSearching] = useState(false);
+  const codeReaderRef = useRef<any>(null);
+
+  const startScan = async () => {
+    setErr(null);
+    setScanning(true);
+    setLooking(true);
+    try {
+      const { BrowserMultiFormatReader } = await import("@zxing/browser");
+      const reader = new BrowserMultiFormatReader();
+      codeReaderRef.current = reader;
+
+      // List cameras, prefer back camera
+      const devices = await BrowserMultiFormatReader.listVideoInputDevices();
+      const backCam = devices.find((d: any) => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
+
+      reader.decodeFromVideoDevice(backCam.deviceId, videoRef.current!, (result: any, _err: any) => {
+        if (result) {
+          const barcode = result.getText();
+          stopScan();
+          lookupBarcodeApi(barcode);
+        }
+      });
+      setLooking(false);
+    } catch (e: any) {
+      setScanning(false);
+      setLooking(false);
+      setErr("Kamera konnte nicht gestartet werden. Bitte Barcode manuell eingeben.");
+    }
+  };
+
+  const stopScan = () => {
+    if (codeReaderRef.current) {
+      codeReaderRef.current.stop();
+      codeReaderRef.current = null;
+    }
+    setScanning(false);
+  };
+
+  const lookupBarcodeApi = async (barcode: string) => {
+    setSearching(true);
+    setErr(null);
+    try {
+      const r = await lookupBarcode(barcode);
+      onFound(r.preset);
+    } catch (e: any) {
+      const msg = e?.status === 404
+        ? "Produkt nicht gefunden. Bitte manuell eingeben."
+        : (e?.message || "Fehler beim Suchen.");
+      setErr(msg);
+      // Stop scanning so user can enter manually
+      stopScan();
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const submitManual = () => {
+    if (!manualBarcode.trim()) return;
+    lookupBarcodeApi(manualBarcode.trim());
+  };
+
+  useEffect(() => {
+    return () => { stopScan(); };
+  }, []);
+
+  return (
+    <Modal open onClose={() => { stopScan(); onClose(); }} title="Barcode scannen">
+      <div className="space-y-4">
+        {scanning && (
+          <div className="relative rounded-xl overflow-hidden bg-black">
+            <video ref={videoRef} className="w-full h-48 object-cover" />
+            {/* Scan frame overlay */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-48 h-1 bg-accent rounded-full opacity-80 animate-pulse" />
+            </div>
+            {looking && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                <Loading label="Kamera wird gestartet…" />
+              </div>
+            )}
+          </div>
+        )}
+
+        {searching && <Loading label="Produkt wird gesucht…" />}
+
+        {err && (
+          <div className="bg-danger-soft border border-danger rounded-xl p-3">
+            <p className="text-sm text-danger">{err}</p>
+          </div>
+        )}
+
+        {!scanning && !searching && (
+          <>
+            <button type="button" onClick={startScan}
+              className="w-full bg-accent text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-accent-hover">
+              <Camera size={18} /> Kamera starten
+            </button>
+
+            {/* Manual barcode entry */}
+            <div className="border-t border-border-muted pt-3">
+              <p className="text-xs text-muted mb-2">Oder Barcode manuell eingeben:</p>
+              <div className="flex gap-2">
+                <input value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)}
+                  placeholder="z. B. 4008400253867" inputMode="numeric"
+                  className="flex-1 bg-bg border border-border rounded-xl px-3 py-2.5 text-sm text-text"
+                  onKeyDown={(e) => { if (e.key === "Enter") submitManual(); }} />
+                <button type="button" onClick={submitManual} disabled={!manualBarcode.trim()}
+                  className="bg-accent text-white font-bold px-4 rounded-xl text-sm disabled:opacity-50">
+                  Suchen
+                </button>
+              </div>
+            </div>
+
+            <button type="button" onClick={() => { stopScan(); onClose(); }}
+              className="w-full text-sm text-muted hover:text-text py-2">
+              Abbrechen
+            </button>
+          </>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// New preset form (manual entry)
+// ---------------------------------------------------------------------------
+
+function NewPresetForm({ onCancel, onCreated }: { onCancel: () => void; onCreated: (p: FoodPreset) => void }) {
   const [form, setForm] = useState({
-    name: "",
-    brand: "",
-    servingSize: "100",
-    servingUnit: "g",
-    calories: "",
-    protein: "",
-    carbs: "",
-    fat: "",
+    name: "", brand: "", servingSize: "100", servingUnit: "g",
+    calories: "", protein: "", carbs: "", fat: "",
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -413,12 +455,8 @@ function NewPresetForm({
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const submit = async () => {
-    if (!form.name.trim()) {
-      setErr("Name erforderlich.");
-      return;
-    }
-    setSaving(true);
-    setErr(null);
+    if (!form.name.trim()) { setErr("Name erforderlich."); return; }
+    setSaving(true); setErr(null);
     try {
       const r = await createFoodPreset({
         name: form.name.trim(),
@@ -431,58 +469,30 @@ function NewPresetForm({
         fat: Number(form.fat) || 0,
       });
       onCreated(r.preset);
-    } catch (e: any) {
-      setErr(e?.message || "Anlegen fehlgeschlagen.");
-    } finally {
-      setSaving(false);
-    }
+    } catch (e: any) { setErr(e?.message || "Anlegen fehlgeschlagen."); }
+    finally { setSaving(false); }
   };
 
   return (
     <div className="space-y-3">
-      <Field label="Name">
-        <input value={form.name} onChange={set("name")} className={inputCls} />
-      </Field>
-      <Field label="Marke (optional)">
-        <input value={form.brand} onChange={set("brand")} className={inputCls} />
-      </Field>
+      <Field label="Name"><input value={form.name} onChange={set("name")} className={inputCls} /></Field>
+      <Field label="Marke (optional)"><input value={form.brand} onChange={set("brand")} className={inputCls} /></Field>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Portionsgröße">
-          <input type="number" value={form.servingSize} onChange={set("servingSize")} className={inputCls} />
-        </Field>
-        <Field label="Einheit">
-          <input value={form.servingUnit} onChange={set("servingUnit")} className={inputCls} />
-        </Field>
+        <Field label="Portionsgröße"><input type="number" value={form.servingSize} onChange={set("servingSize")} className={inputCls} /></Field>
+        <Field label="Einheit"><input value={form.servingUnit} onChange={set("servingUnit")} className={inputCls} /></Field>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Kalien">
-          <input type="number" value={form.calories} onChange={set("calories")} className={inputCls} />
-        </Field>
-        <Field label="Protein (g)">
-          <input type="number" value={form.protein} onChange={set("protein")} className={inputCls} />
-        </Field>
-        <Field label="Carbs (g)">
-          <input type="number" value={form.carbs} onChange={set("carbs")} className={inputCls} />
-        </Field>
-        <Field label="Fett (g)">
-          <input type="number" value={form.fat} onChange={set("fat")} className={inputCls} />
-        </Field>
+        <Field label="Kalien"><input type="number" value={form.calories} onChange={set("calories")} className={inputCls} /></Field>
+        <Field label="Protein (g)"><input type="number" value={form.protein} onChange={set("protein")} className={inputCls} /></Field>
+        <Field label="Carbs (g)"><input type="number" value={form.carbs} onChange={set("carbs")} className={inputCls} /></Field>
+        <Field label="Fett (g)"><input type="number" value={form.fat} onChange={set("fat")} className={inputCls} /></Field>
       </div>
       {err && <p className="text-sm text-danger">{err}</p>}
       <div className="flex gap-2 pt-1">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="flex-1 bg-bg border border-border text-text font-semibold py-3 rounded-xl"
-        >
-          Abbrechen
-        </button>
-        <button
-          type="button"
-          onClick={submit}
-          disabled={saving}
-          className="flex-1 bg-accent text-white font-bold py-3 rounded-xl disabled:opacity-50 hover:bg-accent-hover"
-        >
+        <button type="button" onClick={onCancel}
+          className="flex-1 bg-bg border border-border text-text font-semibold py-3 rounded-xl">Abbrechen</button>
+        <button type="button" onClick={submit} disabled={saving}
+          className="flex-1 bg-accent text-white font-bold py-3 rounded-xl disabled:opacity-50 hover:bg-accent-hover">
           {saving ? "…" : "Anlegen"}
         </button>
       </div>
@@ -490,8 +500,7 @@ function NewPresetForm({
   );
 }
 
-const inputCls =
-  "w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-sm text-text placeholder:text-muted";
+const inputCls = "w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-sm text-text placeholder:text-muted";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

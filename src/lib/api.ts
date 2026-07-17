@@ -330,6 +330,13 @@ export const deleteFoodPreset = (id: string) =>
   request<{ success: boolean }>(`/food/presets/${id}`, "DELETE");
 
 // ---------------------------------------------------------------------------
+// Barcode lookup (Open Food Facts)
+// ---------------------------------------------------------------------------
+
+export const lookupBarcode = (barcode: string) =>
+  request<{ preset: FoodPreset; cached: boolean; source?: string }>(`/food/barcode/${barcode}`);
+
+// ---------------------------------------------------------------------------
 // Meals
 // ---------------------------------------------------------------------------
 

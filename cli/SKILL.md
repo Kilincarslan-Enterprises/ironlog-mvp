@@ -52,11 +52,12 @@ ironlog tokens revoke <id>                  # Revoke a token
 
 ### Food & Nutrition
 ```
-ironlog food presets                        # List food presets
-ironlog food presets create '{...}'        # Create preset
-ironlog food presets update <id> '{...}'    # Update preset
-ironlog food presets delete <id>            # Delete preset
-ironlog food meals [--date YYYY-MM-DD]      # List meals
+ironlog food presets                       # List food presets
+ironlog food presets create '{...}'        # Create food preset
+ironlog food presets update <id> '{...}'   # Update food preset
+ironlog food presets delete <id>           # Delete food preset
+ironlog food barcode <barcode>             # Lookup product by barcode (Open Food Facts)
+ironlog food meals                         # List today's meals
 ironlog food meals create '{...}'          # Log a meal with items
 ironlog food meals update <id> '{...}'      # Update meal (name, note, loggedAt)
 ironlog food meals delete <id> [--item <itemId>]  # Delete meal or single item

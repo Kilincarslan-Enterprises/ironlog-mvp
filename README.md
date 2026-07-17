@@ -289,6 +289,11 @@ Partial update of a preset owned by the user (same body shape, all optional).
 #### `DELETE /api/food/presets/:id`
 → `{ "success": true }` · `404` if not owned.
 
+#### `GET /api/food/barcode/:barcode`
+Lookup product by barcode. Checks D1 cache first, then queries Open Food Facts.
+Found products are cached as food presets automatically.
+→ `{ "preset": { }, "cached": false, "source": "openfoodfacts" }` · `404` if not found in OFF.
+
 #### `GET /api/food/meals?date=YYYY-MM-DD`
 Defaults to today. → `{ "meals": [ /* meals with nested `items` */ ] }`
 
@@ -614,7 +619,7 @@ Alternatively set the `IRONLOG_TOKEN` env var (no login needed).
 | --- | --- |
 | System | `health`, `whoami`, `dashboard`, `user update` |
 | Tokens | `tokens list`, `tokens create`, `tokens revoke` |
-| Food | `food presets`, `food presets create/update/delete`, `food meals`, `food meals create/update/delete`, `nutrition daily` |
+| Food | `food presets`, `food presets create/update/delete`, `food barcode`, `food meals`, `food meals create/update/delete`, `nutrition daily` |
 | Training | `training exercises`, `training exercises create/delete`, `training plans`, `training plans create/delete`, `training sessions`, `training sessions create/delete`, `training sessions update`, `training sessions add-set/update-set/delete-set`, `training prs` |
 | Schedule | `schedule`, `schedule set`, `schedule today`, `schedule week`, `schedule override`, `schedule override delete` |
 | Machines | `machines`, `machines create/update/delete`, `machines logs`, `machines log`, `machines log delete`, `machines progress` |

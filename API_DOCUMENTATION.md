@@ -152,6 +152,18 @@ Aktualisiert eine eigene Vorlage.
 Löscht eine eigene Vorlage.
 - **Response:** `200 OK`
 
+### `GET /api/food/barcode/:barcode`
+Sucht ein Produkt anhand des Barcodes in der Datenbank (Cache). Wenn nicht gefunden, wird Open Food Facts abgefragt. Gefundene Produkte werden automatisch als Food Preset gespeichert.
+- **Response:** `200 OK`
+  ```json
+  {
+    "preset": { "id": "uuid", "name": "Product Name", "brand": "Brand", "calories": 250, "protein": 10, "carbs": 30, "fat": 12, "barcode": "4008400253867", ... },
+    "cached": false,
+    "source": "openfoodfacts"
+  }
+  ```
+- **Response:** `404 Not Found` — Produkt nicht in Open Food Facts gefunden
+
 ### `GET /api/food/meals`
 Gibt die Mahlzeiten eines bestimmten Datums (oder von heute) zurück.
 - **Query Parameter:** `?date=YYYY-MM-DD`

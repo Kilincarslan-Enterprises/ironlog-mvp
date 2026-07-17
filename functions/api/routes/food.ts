@@ -108,6 +108,79 @@ food.delete("/presets/:id", async (c) => {
 });
 
 // ---------------------------------------------------------------------------
+// Barcode lookup (Open Food Facts)
+// ---------------------------------------------------------------------------
+
+// Lookup a product by barcode. Returns a cached food_preset if the user already
+// has one with this barcode; otherwise fetches from Open Food Facts, creates a
+// preset, and returns it. 404 if not found in OFF.
+food.get("/barcode/:barcode", async (c) => {
+  const user = getCtxUser(c);
+  const db = getDb(c.env.DB);
+  const barcode = c.req.param("barcode");
+
+  // 1. Check cache — does this user already have a preset with this barcode?
+  const cached = await db.query.foodPresets.findFirst({
+    where: and(eq(foodPresets.barcode, barcode), eq(foodPresets.userId, user.id))
+  });
+  if (cached) {
+    return c.json({ preset: cached, cached: true });
+  }
+
+  // 2. Fetch from Open Food Facts
+  const offUrl = `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`;
+  let offRes: Response;
+  try {
+    offRes = await fetch(offUrl, {
+      headers: { "User-Agent": "IronLog/1.0 (https://ironlog-mvp.pages.dev)" }
+    });
+  } catch {
+    return c.json({ error: "Failed to reach Open Food Facts" }, 502);
+  }
+
+  if (!offRes.ok) {
+    return c.json({ error: "Open Food Facts request failed" }, 502);
+  }
+
+  const offData = await offRes.json() as {
+    status: number;
+    product?: {
+      product_name?: string;
+      brands?: string;
+      nutriments?: Record<string, number | undefined>;
+    };
+  };
+
+  // 3. OFF returns status !== 1 when the product is not found
+  if (offData.status !== 1 || !offData.product) {
+    return c.json({ error: "Product not found in Open Food Facts" }, 404);
+  }
+
+  const n = offData.product.nutriments || {};
+
+  // 4. Map OFF data → food_preset fields
+  const [created] = await db.insert(foodPresets).values({
+    id: crypto.randomUUID(),
+    userId: user.id,
+    name: offData.product.product_name || "Unknown",
+    brand: offData.product.brands || null,
+    servingSize: 100,
+    servingUnit: "g",
+    calories: Number(n["energy-kcal_100g"] || 0),
+    protein: Number(n["proteins_100g"] || 0),
+    carbs: Number(n["carbohydrates_100g"] || 0),
+    fat: Number(n["fat_100g"] || 0),
+    fiber: Number(n["fiber_100g"] || 0),
+    sodium: Number(n["sodium_100g"] || 0),
+    barcode: barcode,
+    isPublic: false,
+  }).returning();
+
+  // 5. Return the newly created preset
+  return c.json({ preset: created, cached: false, source: "openfoodfacts" });
+});
+
+// ---------------------------------------------------------------------------
 // Meals
 // ---------------------------------------------------------------------------
 

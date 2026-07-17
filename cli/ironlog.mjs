@@ -294,6 +294,15 @@ const commands = {
     },
   },
 
+  "food barcode": {
+    desc: "Lookup product by barcode (Open Food Facts)",
+    usage: "ironlog food barcode <barcode>",
+    run: async (args, flags, jsonFlag) => {
+      const data = await api(`/food/barcode/${args[0]}`);
+      output(data, jsonFlag);
+    },
+  },
+
   // -- Food meals --
   "food meals": {
     desc: "List meals (today or by date)",
@@ -859,7 +868,7 @@ Commands:`);
   const groups = {
     "System & User": ["health", "whoami", "dashboard", "user update"],
     "API Tokens": ["tokens list", "tokens create", "tokens revoke"],
-    "Food & Nutrition": ["food presets", "food presets create", "food presets update", "food presets delete", "food meals", "food meals create", "food meals delete", "nutrition daily"],
+    "Food & Nutrition": ["food presets", "food presets create", "food presets update", "food presets delete", "food barcode", "food meals", "food meals create", "food meals delete", "nutrition daily"],
     "Training": ["training exercises", "training exercises create", "training exercises update", "training exercises delete", "training plans", "training plans create", "training plans update", "training plans delete", "training sessions", "training sessions create", "training sessions update", "training sessions add-set", "training sessions update-set", "training sessions delete-set", "training prs"],
     "Supplements": ["supplements", "supplements create", "supplements update", "supplements delete", "supplements logs", "supplements logs create", "supplements logs delete"],
     "Weight": ["weight", "weight create", "weight update", "weight delete"],

@@ -64,6 +64,15 @@ node cli/ironlog.mjs food meals create '{
 }' --json
 ```
 
+### 3b. Lookup Product by Barcode
+```bash
+# Scan barcode (looks up Open Food Facts, caches as food preset)
+node cli/ironlog.mjs food barcode 4008400253867 --json
+
+# Returns: { preset: { id, name, brand, calories, protein, carbs, fat, barcode, ... }, cached: true/false }
+# Use the preset ID to log a meal with quantity
+```
+
 ### 4. Start + Complete a Workout
 ```bash
 # Create session
