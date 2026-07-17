@@ -1,42 +1,53 @@
 import { Hono } from "hono";
 import { and, eq, desc } from "drizzle-orm";
 import { getDb } from "../db";
-import { machines, machineLogs } from "../../../db/schema";
+import { exercises, machineLogs } from "../../../db/schema";
 import { AppEnv, getCtxUser } from "../auth";
 
 const machinesRoute = new Hono<AppEnv>();
 
 // ---------------------------------------------------------------------------
-// Machine CRUD
+// Machine CRUD — backed by exercises WHERE type='machine' (backward compatible).
+// The old `machines` table is kept for machine_logs FK integrity; machine IDs
+// were copied into exercises with the same IDs during migration 0002.
 // ---------------------------------------------------------------------------
 
-/** GET /api/machines — list the user's machines. Optional ?muscleGroup=chest filter. */
+/** GET /api/machines — list the user's machine-type exercises. Optional ?muscleGroup=chest filter. */
 machinesRoute.get("/", async (c) => {
   const user = getCtxUser(c);
   const db = getDb(c.env.DB);
   const muscleGroup = c.req.query("muscleGroup");
 
-  const list = await db.query.machines.findMany({
+  const list = await db.query.exercises.findMany({
     where: muscleGroup
-      ? and(eq(machines.userId, user.id), eq(machines.muscleGroup, muscleGroup))
-      : eq(machines.userId, user.id),
+      ? and(
+          eq(exercises.userId, user.id),
+          eq(exercises.type, "machine"),
+          eq(exercises.muscleGroup, muscleGroup),
+        )
+      : and(eq(exercises.userId, user.id), eq(exercises.type, "machine")),
   });
   return c.json({ machines: list });
 });
 
-/** POST /api/machines — create a machine. */
+/** POST /api/machines — create a machine (stored as an exercise with type='machine'). */
 machinesRoute.post("/", async (c) => {
   const user = getCtxUser(c);
   const db = getDb(c.env.DB);
   const body = await c.req.json();
 
   const [created] = await db
-    .insert(machines)
+    .insert(exercises)
     .values({
       id: crypto.randomUUID(),
       userId: user.id,
       name: body.name,
+      category: "strength",
       muscleGroup: body.muscleGroup || null,
+      equipment: null,
+      instructions: null,
+      isPublic: false,
+      type: "machine",
       imageUrl: body.imageUrl || null,
       notes: body.notes || null,
     })
@@ -44,14 +55,18 @@ machinesRoute.post("/", async (c) => {
   return c.json({ machine: created });
 });
 
-/** PUT /api/machines/:id — update a machine (scoped to owner). */
+/** PUT /api/machines/:id — update a machine (exercise with type='machine', scoped to owner). */
 machinesRoute.put("/:id", async (c) => {
   const user = getCtxUser(c);
   const db = getDb(c.env.DB);
   const id = c.req.param("id");
 
-  const existing = await db.query.machines.findFirst({
-    where: and(eq(machines.id, id), eq(machines.userId, user.id)),
+  const existing = await db.query.exercises.findFirst({
+    where: and(
+      eq(exercises.id, id),
+      eq(exercises.userId, user.id),
+      eq(exercises.type, "machine"),
+    ),
   });
   if (!existing) return c.json({ error: "Not found" }, 404);
 
@@ -63,23 +78,35 @@ machinesRoute.put("/:id", async (c) => {
   if (body.notes !== undefined) updates.notes = body.notes || null;
 
   const [updated] = await db
-    .update(machines)
+    .update(exercises)
     .set(updates)
-    .where(and(eq(machines.id, id), eq(machines.userId, user.id)))
+    .where(
+      and(
+        eq(exercises.id, id),
+        eq(exercises.userId, user.id),
+        eq(exercises.type, "machine"),
+      ),
+    )
     .returning();
 
   return c.json({ machine: updated });
 });
 
-/** DELETE /api/machines/:id — delete a machine (cascades to logs). */
+/** DELETE /api/machines/:id — delete a machine (exercise with type='machine'). */
 machinesRoute.delete("/:id", async (c) => {
   const user = getCtxUser(c);
   const db = getDb(c.env.DB);
   const id = c.req.param("id");
 
   const deleted = await db
-    .delete(machines)
-    .where(and(eq(machines.id, id), eq(machines.userId, user.id)))
+    .delete(exercises)
+    .where(
+      and(
+        eq(exercises.id, id),
+        eq(exercises.userId, user.id),
+        eq(exercises.type, "machine"),
+      ),
+    )
     .returning();
 
   if (deleted.length === 0) return c.json({ error: "Not found" }, 404);
@@ -87,7 +114,8 @@ machinesRoute.delete("/:id", async (c) => {
 });
 
 // ---------------------------------------------------------------------------
-// Machine logs
+// Machine logs — keep referencing the old machines table for FK integrity.
+// Since migrated machines share the same ID in exercises, machineId === exerciseId.
 // ---------------------------------------------------------------------------
 
 /** GET /api/machines/:id/logs — machine log history for one machine. */
@@ -97,9 +125,13 @@ machinesRoute.get("/:id/logs", async (c) => {
   const machineId = c.req.param("id");
   const limit = Number(c.req.query("limit") || 30);
 
-  // Validate machine belongs to user.
-  const machine = await db.query.machines.findFirst({
-    where: and(eq(machines.id, machineId), eq(machines.userId, user.id)),
+  // Validate the machine (exercise with type='machine') belongs to user.
+  const machine = await db.query.exercises.findFirst({
+    where: and(
+      eq(exercises.id, machineId),
+      eq(exercises.userId, user.id),
+      eq(exercises.type, "machine"),
+    ),
   });
   if (!machine) return c.json({ error: "Not found" }, 404);
 
@@ -119,9 +151,13 @@ machinesRoute.post("/:id/logs", async (c) => {
   const machineId = c.req.param("id");
   const body = await c.req.json();
 
-  // Validate machine belongs to user.
-  const machine = await db.query.machines.findFirst({
-    where: and(eq(machines.id, machineId), eq(machines.userId, user.id)),
+  // Validate the machine (exercise with type='machine') belongs to user.
+  const machine = await db.query.exercises.findFirst({
+    where: and(
+      eq(exercises.id, machineId),
+      eq(exercises.userId, user.id),
+      eq(exercises.type, "machine"),
+    ),
   });
   if (!machine) return c.json({ error: "Not found" }, 404);
 
@@ -150,9 +186,13 @@ machinesRoute.delete("/:id/logs/:logId", async (c) => {
   const machineId = c.req.param("id");
   const logId = c.req.param("logId");
 
-  // Validate machine belongs to user.
-  const machine = await db.query.machines.findFirst({
-    where: and(eq(machines.id, machineId), eq(machines.userId, user.id)),
+  // Validate the machine (exercise with type='machine') belongs to user.
+  const machine = await db.query.exercises.findFirst({
+    where: and(
+      eq(exercises.id, machineId),
+      eq(exercises.userId, user.id),
+      eq(exercises.type, "machine"),
+    ),
   });
   if (!machine) return c.json({ error: "Not found" }, 404);
 
@@ -179,9 +219,13 @@ machinesRoute.get("/:id/progress", async (c) => {
   const db = getDb(c.env.DB);
   const machineId = c.req.param("id");
 
-  // Validate machine belongs to user.
-  const machine = await db.query.machines.findFirst({
-    where: and(eq(machines.id, machineId), eq(machines.userId, user.id)),
+  // Validate the machine (exercise with type='machine') belongs to user.
+  const machine = await db.query.exercises.findFirst({
+    where: and(
+      eq(exercises.id, machineId),
+      eq(exercises.userId, user.id),
+      eq(exercises.type, "machine"),
+    ),
   });
   if (!machine) return c.json({ error: "Not found" }, 404);
 

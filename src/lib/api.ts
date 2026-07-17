@@ -98,6 +98,9 @@ export interface Exercise {
   equipment: string | null;
   instructions: string | null;
   isPublic: boolean;
+  type: "machine" | "free-weight" | "bodyweight";
+  imageUrl: string | null;
+  notes: string | null;
 }
 
 export interface WorkoutPlanExercise {

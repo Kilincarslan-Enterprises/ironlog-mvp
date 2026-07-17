@@ -5,6 +5,28 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versioning foll
 
 ---
 
+## [0.6.0] — 2026-07-17
+
+### Added
+- **Unified exercise system** — Machines and free-weight exercises merged into one system. Every exercise has a `type` field: `machine`, `free-weight`, or `bodyweight`.
+- **Migration 0002_unified_exercises** — Existing machines copied into exercises table with `type='machine'`. New columns: `type`, `image_url`, `notes` on exercises.
+- **Unified "Übung hinzufügen" modal** — Choose type (Maschine/Freihantel/Körpergewicht) when creating. Machine-type shows optional image URL and notes.
+- **Exercise detail modal** — Click any exercise to see progress (first/latest/delta/max), recent log history, and quick weight+reps logging.
+- **Type badges** in exercise list — Color-coded labels: Maschine (accent), Freihantel (success), Körpergewicht (warning).
+- **Plan creation** — All exercise types selectable in plan editor, with type badges.
+- **Session "Satz hinzufügen"** — Shows plan exercises if session started from plan, otherwise all exercises.
+
+### Changed
+- Training page rebuilt: machines section removed, unified exercises list with type badges
+- Machine API endpoints now query `exercises WHERE type='machine'` (backward compatible)
+- `Exercise` type extended with `type`, `imageUrl`, `notes` fields
+- Removed separate machines/machineLogs loading from Training page (uses exercises list)
+
+### Fixed
+- Training page crashes: `session.sets` undefined, `plan.exercises` undefined, `maxWeight` type mismatch
+
+---
+
 ## [0.5.0] — 2026-07-16
 
 ### Added

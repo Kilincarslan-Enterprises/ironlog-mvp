@@ -226,11 +226,18 @@ export const exercises = sqliteTable(
     equipment: text("equipment"),
     instructions: text("instructions"),
     isPublic: integer("is_public", { mode: "boolean" }).notNull().default(false),
+    // Unified exercise type — machines are now exercises with type="machine".
+    type: text("type", { enum: ["machine", "free-weight", "bodyweight"] })
+      .notNull()
+      .default("free-weight"),
+    imageUrl: text("image_url"),
+    notes: text("notes"),
     ...timestamps,
   },
   (t) => [
     index("exercises_user_id_idx").on(t.userId),
     index("exercises_category_idx").on(t.category),
+    index("exercises_type_idx").on(t.type),
   ]
 );
 

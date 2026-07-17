@@ -113,6 +113,9 @@ training.post("/exercises", async (c) => {
       equipment: body.equipment || null,
       instructions: body.instructions || null,
       isPublic: !!body.isPublic,
+      type: body.type || "free-weight",
+      imageUrl: body.imageUrl || null,
+      notes: body.notes || null,
     })
     .returning();
   return c.json({ exercise: created });
@@ -137,6 +140,9 @@ training.put("/exercises/:id", async (c) => {
   if (body.equipment !== undefined) updates.equipment = body.equipment || null;
   if (body.instructions !== undefined) updates.instructions = body.instructions || null;
   if (body.isPublic !== undefined) updates.isPublic = !!body.isPublic;
+  if (body.type !== undefined) updates.type = body.type;
+  if (body.imageUrl !== undefined) updates.imageUrl = body.imageUrl || null;
+  if (body.notes !== undefined) updates.notes = body.notes || null;
 
   const [updated] = await db
     .update(exercises)
