@@ -232,7 +232,7 @@ export default function Training() {
               <p className="text-lg font-bold text-text-strong">{scheduleToday.label}</p>
               {scheduleToday.plan && (
                 <p className="text-sm text-muted mt-0.5">
-                  {scheduleToday.plan.name} · {scheduleToday.plan.exercises.length} Übung(en)
+                  {scheduleToday.plan.name} · {(scheduleToday.plan.exercises?.length ?? 0)} Übung(en)
                 </p>
               )}
             </div>
