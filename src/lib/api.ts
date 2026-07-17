@@ -118,7 +118,7 @@ export interface WorkoutPlan {
   name: string;
   schedule: string | null;
   isActive: boolean;
-  exercises: WorkoutPlanExercise[];
+  exercises?: WorkoutPlanExercise[];
 }
 
 export interface WorkoutSet {
@@ -646,7 +646,7 @@ export interface MachineProgress {
   firstLog: MachineLog | null;
   latestLog: MachineLog | null;
   delta: number;
-  maxWeight: number;
+  maxWeight: MachineLog | null;
   recentLogs: MachineLog[];
 }
 

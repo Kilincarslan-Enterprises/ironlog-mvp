@@ -79,7 +79,7 @@ export default function Training() {
       ]);
       setExercises(ex.exercises);
       setPlans(pl.plans);
-      setSessions(se.sessions);
+      setSessions((se.sessions || []).map((s: any) => ({ ...s, sets: s.sets || [] })));
       setRecords(pr.records || []);
       setScheduleToday(st);
       setScheduleWeek(sw.days || []);
@@ -103,7 +103,7 @@ export default function Training() {
         name: plan?.name || scheduleToday?.label || "Workout",
         planId: plan?.id,
       });
-      setSessions((prev) => [r.session, ...prev]);
+      setSessions((prev) => [{ ...r.session, sets: r.session.sets || [] }, ...prev]);
     } catch (e: any) {
       setError(e?.message || "Session konnte nicht gestartet werden.");
     }
@@ -112,12 +112,11 @@ export default function Training() {
   const finishSession = async (id: string) => {
     try {
       const r = await finishWorkoutSession(id);
-      setSessions((prev) => prev.map((s) => (s.id === id ? r.session : s)));
+      setSessions((prev) => prev.map((s) => (s.id === id ? { ...r.session, sets: r.session.sets || [] } : s)));
     } catch (e: any) {
       setError(e?.message || "Session konnte nicht beendet werden.");
     }
   };
-
   const onActivate = async (id: string) => {
     try {
       const r = await activateWorkoutPlan(id);
@@ -133,7 +132,7 @@ export default function Training() {
       const r = await addSet(activeSession.id, data);
       setSessions((prev) =>
         prev.map((s) =>
-          s.id === activeSession.id ? { ...s, sets: [...s.sets, r.set] } : s,
+          s.id === activeSession.id ? { ...s, sets: [...(s.sets || []), r.set] } : s,
         ),
       );
       setAddSetOpen(false);
@@ -147,7 +146,7 @@ export default function Training() {
       await deleteSet(sessionId, setId);
       setSessions((prev) =>
         prev.map((s) =>
-          s.id === sessionId ? { ...s, sets: s.sets.filter((x) => x.id !== setId) } : s,
+          s.id === sessionId ? { ...s, sets: (s.sets || []).filter((x) => x.id !== setId) } : s,
         ),
       );
     } catch (e: any) {
@@ -409,7 +408,7 @@ export default function Training() {
               }
             >
               <p className="text-sm text-muted">
-                {p.exercises.length} Übung(en) · {p.schedule || "kein Schedule"}
+                {(p.exercises?.length ?? 0)} Übung(en) · {p.schedule || "kein Schedule"}
               </p>
             </Card>
           ))
@@ -579,7 +578,7 @@ function ActiveSessionCard({
     : Math.max(0, Math.round((Date.now() - startedAt.getTime()) / 60000));
 
   const byExercise = new Map<string, WorkoutSet[]>();
-  for (const set of session.sets) {
+  for (const set of (session.sets || [])) {
     const arr = byExercise.get(set.exerciseId) || [];
     arr.push(set);
     byExercise.set(set.exerciseId, arr);
@@ -809,11 +808,11 @@ function PlanViewModal({
           </span>
           {plan.schedule && <span className="text-muted">{plan.schedule}</span>}
         </div>
-        {plan.exercises.length === 0 ? (
+        {(plan.exercises?.length ?? 0) === 0 ? (
           <p className="text-sm text-muted">Keine Übungen in diesem Plan.</p>
         ) : (
           <ul className="space-y-2">
-            {plan.exercises.map((pe) => {
+            {(plan.exercises || []).map((pe) => {
               const ex = exMap.get(pe.exerciseId);
               return (
                 <li key={pe.id} className="flex items-center justify-between border-b border-border-muted py-2">
@@ -1031,7 +1030,7 @@ function MachineModal({
             <div className="flex items-center gap-2 text-sm">
               <Trophy size={16} className="text-warning" />
               <span className="text-muted">All-Time Max:</span>
-              <span className="font-bold text-text">{progress.maxWeight}kg</span>
+              <span className="font-bold text-text">{progress.maxWeight ? `${progress.maxWeight.weight}kg` : "—"}</span>
             </div>
             {progress.recentLogs.length > 0 && (
               <div>
