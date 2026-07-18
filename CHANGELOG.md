@@ -12,6 +12,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versioning foll
 - **Gramm/Stück-Umschalter** — Beim Mahlzeit hinzufügen kann zwischen Gramm und Stück gewechselt werden. Nährwerte werden automatisch berechnet (Stück × g-pro-Stück / 100g × Nährwerte).
 - **Preset bearbeiten** — Vorhandene Lebensmittel können jetzt bearbeitet werden (Edit-Button in der Preset-Liste). Alle Felder inkl. Stück-Einstellungen änderbar.
 - **Preset löschen** — Löschen-Button im Edit-Modal.
+- **Barcode auto-Packung** — `GET /api/food/barcode/:barcode` erkennt automatisch die Packungsgröße aus Open Food Facts (`quantity`-Feld, z.B. `"850 g"`, `"1 kg"`) und setzt am Preset `pieceSize` (Gewicht in Gramm, kg→×1000) und `pieceName = "Packung"`. Produkte können als "1 Packung" geloggt werden. Wenn `quantity` fehlt/leer ist, bleibt `pieceSize` null (gramm-only Preset).
 
 ### Changed
 - `food_presets` Schema: neue Felder `piece_size` (REAL) und `piece_name` (TEXT)

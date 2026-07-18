@@ -270,20 +270,22 @@ Targets accept `null` to clear. → `{ "user": { /* updated row */ } }`
 ### Food
 
 #### `GET /api/food/presets`
-→ `{ "presets": [ /* user's presets + all public presets */ ] }`
+→ `{ "presets": [ /* user's presets + all public presets */ ] }`. Each preset includes optional `pieceSize` (number|null, grams per piece) and `pieceName` (string|null). When `pieceSize` is set, portions can be logged by piece count (grams = count × pieceSize) instead of grams.
 
 #### `POST /api/food/presets`
 ```json
 {
   "name": "Haferflocken", "brand": "KoRo", "servingSize": 100, "servingUnit": "g",
   "calories": 370, "protein": 13, "carbs": 60, "fat": 7, "fiber": 10, "sodium": 2,
-  "barcode": "4012345678905", "isPublic": false
+  "barcode": "4012345678905", "isPublic": false,
+  "pieceSize": null, "pieceName": null
 }
 ```
+Optional piece fields: `pieceSize` (number|null) = grams per piece (e.g. `53` for one egg), `pieceName` (string|null) = piece label (e.g. `"Ei"`, `"Packung"`). When set, the UI lets users log by piece count and auto-computes nutrients (grams = count × pieceSize, scale = grams / servingSize).
 → `{ "preset": { /* created row */ } }`
 
 #### `PUT /api/food/presets/:id`
-Partial update of a preset owned by the user (same body shape, all optional).
+Partial update of a preset owned by the user (same body shape, all optional), including `pieceSize` and `pieceName`. Set both to `null` to disable piece-based logging.
 → `{ "preset": { /* updated row */ } }` · `404` if not owned.
 
 #### `DELETE /api/food/presets/:id`
@@ -291,8 +293,8 @@ Partial update of a preset owned by the user (same body shape, all optional).
 
 #### `GET /api/food/barcode/:barcode`
 Lookup product by barcode. Checks D1 cache first, then queries Open Food Facts.
-Found products are cached as food presets automatically.
-→ `{ "preset": { }, "cached": false, "source": "openfoodfacts" }` · `404` if not found in OFF.
+Found products are cached as food presets automatically. Since v0.7.0 the endpoint auto-detects the pack weight: Open Food Facts' `quantity` field (e.g. `"850 g"`, `"1 kg"`) is parsed and stored as `pieceSize` (grams, kg→×1000) with `pieceName = "Packung"`, so the product can be logged as "1 Packung". If `quantity` is missing/empty, `pieceSize` stays null.
+→ `{ "preset": { /* includes pieceSize, pieceName */ }, "cached": false, "source": "openfoodfacts" }` · `404` if not found in OFF.
 
 #### `GET /api/food/meals?date=YYYY-MM-DD`
 Defaults to today. → `{ "meals": [ /* meals with nested `items` */ ] }`

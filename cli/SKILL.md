@@ -52,17 +52,24 @@ ironlog tokens revoke <id>                  # Revoke a token
 
 ### Food & Nutrition
 ```
-ironlog food presets                       # List food presets
-ironlog food presets create '{...}'        # Create food preset
-ironlog food presets update <id> '{...}'   # Update food preset
+ironlog food presets                       # List food presets (includes pieceSize, pieceName)
+ironlog food presets create '{...}'        # Create food preset (optional pieceSize, pieceName)
+ironlog food presets update <id> '{...}'   # Update food preset (incl. pieceSize, pieceName)
 ironlog food presets delete <id>           # Delete food preset
-ironlog food barcode <barcode>             # Lookup product by barcode (Open Food Facts)
+ironlog food barcode <barcode>             # Lookup barcode (Open Food Facts) — auto-detects Packung weight as pieceSize
 ironlog food meals                         # List today's meals
 ironlog food meals create '{...}'          # Log a meal with items
 ironlog food meals update <id> '{...}'      # Update meal (name, note, loggedAt)
 ironlog food meals delete <id> [--item <itemId>]  # Delete meal or single item
 ironlog nutrition daily [--date YYYY-MM-DD] # Daily nutrition summary
 ```
+
+> **Stück-basierte Portionsgröße (v0.7.0):** Presets unterstützen optionale `pieceSize` (number|null, Gramm pro Stück) und `pieceName` (string|null, Stück-Name). Bei gesetztem `pieceSize` kann die Portion als Stückzahl geloggt werden; Gramm = Stückzahl × pieceSize.
+> Beispiel Preset erstellen:
+> ```bash
+> ironlog food presets create '{"name":"Ei","servingSize":100,"servingUnit":"g","calories":155,"protein":13,"carbs":1,"fat":11,"pieceSize":53,"pieceName":"Ei"}' --json
+> ```
+> **Barcode auto-Packung:** `food barcode <barcode>` erkennt automatisch die Packungsgröße aus Open Food Facts (`quantity`-Feld, z.B. `"850 g"`, `"1 kg"`) und setzt `pieceSize` (Gramm, kg→×1000) und `pieceName = "Packung"`. Fehlt das `quantity`-Feld, bleibt `pieceSize` null (gramm-only).
 
 ### Training
 ```

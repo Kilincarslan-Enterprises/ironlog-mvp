@@ -69,8 +69,27 @@ node cli/ironlog.mjs food meals create '{
 # Scan barcode (looks up Open Food Facts, caches as food preset)
 node cli/ironlog.mjs food barcode 4008400253867 --json
 
-# Returns: { preset: { id, name, brand, calories, protein, carbs, fat, barcode, ... }, cached: true/false }
+# Returns: { preset: { id, name, brand, calories, protein, carbs, fat, barcode,
+#   pieceSize, pieceName, ... }, cached: true/false }
+# Since v0.7.0 the endpoint auto-detects the pack weight ("Packung") from OFF's
+# `quantity` field (e.g. "850 g", "1 kg"): pieceSize = grams (kg→×1000),
+# pieceName = "Packung". Log via "1 Packung" instead of grams. If quantity is
+# missing, pieceSize stays null (gram-only preset).
 # Use the preset ID to log a meal with quantity
+```
+
+### 3c. Create a Piece-Based Food Preset (v0.7.0)
+```bash
+# Preset with pieceSize/pieceName — lets users log by piece count instead of grams
+node cli/ironlog.mjs food presets create '{
+  "name": "Ei", "servingSize": 100, "servingUnit": "g",
+  "calories": 155, "protein": 13, "carbs": 1, "fat": 11,
+  "pieceSize": 53, "pieceName": "Ei"
+}' --json
+
+# pieceSize = grams per piece (null to disable), pieceName = label shown in UI
+# To remove piece logging later: update both to null
+node cli/ironlog.mjs food presets update <id> '{"pieceSize":null,"pieceName":null}' --json
 ```
 
 ### 4. Start + Complete a Workout

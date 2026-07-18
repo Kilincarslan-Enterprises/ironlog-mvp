@@ -122,12 +122,33 @@ Aktualisiert das Benutzerprofil oder die Ernährungsziele.
 ## 4. Ernährung (Food)
 
 ### `GET /api/food/presets`
-Gibt alle eigenen Lebensmittel-Vorlagen sowie alle öffentlichen Vorlagen zurück.
+Gibt alle eigenen Lebensmittel-Vorlagen sowie alle öffentlichen Vorlagen zurück. Jedes Preset enthält die optionalen Felder `pieceSize` (number|null) und `pieceName` (string|null). Wenn `pieceSize` gesetzt ist, kann die Portion statt in Gramm als Stückzahl angegeben werden (z.B. "3 Eier").
 - **Response:** `200 OK`
+  ```json
+  {
+    "presets": [
+      {
+        "id": "uuid",
+        "name": "Ei",
+        "brand": null,
+        "servingSize": 100,
+        "servingUnit": "g",
+        "calories": 155,
+        "protein": 13,
+        "carbs": 1,
+        "fat": 11,
+        "pieceSize": 53,
+        "pieceName": "Ei",
+        "barcode": null,
+        "isPublic": false
+      }
+    ]
+  }
+  ```
 
 ### `POST /api/food/presets`
 Erstellt eine neue Lebensmittel-Vorlage.
-- **Request Body:** (name, calories, protein, carbs, fat, servingSize, servingUnit sind Pflichtfelder)
+- **Request Body:** (name, calories, protein, carbs, fat, servingSize, servingUnit sind Pflichtfelder; pieceSize und pieceName sind optional)
   ```json
   {
     "name": "Haferflocken",
@@ -139,13 +160,17 @@ Erstellt eine neue Lebensmittel-Vorlage.
     "carbs": 60,
     "fat": 7,
     "barcode": "401234...",
-    "isPublic": false
+    "isPublic": false,
+    "pieceSize": null,
+    "pieceName": null
   }
   ```
+  - `pieceSize` (number|null): Gewicht eines Stücks in Gramm. Wenn gesetzt, kann die Portion als Stückzahl geloggt werden (Gramm = Stückzahl × pieceSize).
+  - `pieceName` (string|null): Name eines Stücks (z.B. "Ei", "Packung", "Scheibe"). Wird in der UI angezeigt.
 - **Response:** `200 OK`
 
 ### `PUT /api/food/presets/:id`
-Aktualisiert eine eigene Vorlage.
+Aktualisiert eine eigene Vorlage. Akzeptiert die gleichen Felder wie POST (alle optional), inkl. `pieceSize` (number|null) und `pieceName` (string|null). Um die Stück-Option zu entfernen, beide Felder auf `null` setzen.
 - **Response:** `200 OK`
 
 ### `DELETE /api/food/presets/:id`
@@ -154,10 +179,24 @@ Löscht eine eigene Vorlage.
 
 ### `GET /api/food/barcode/:barcode`
 Sucht ein Produkt anhand des Barcodes in der Datenbank (Cache). Wenn nicht gefunden, wird Open Food Facts abgefragt. Gefundene Produkte werden automatisch als Food Preset gespeichert.
+
+Ab v0.7.0 erkennt der Endpoint automatisch die Packungsgröße ("Packung"): Das `quantity`-Feld von Open Food Facts (z.B. `"850 g"`, `"1 kg"`, `"400 g"`) wird geparst und als `pieceSize` (Gewicht in Gramm, kg → ×1000) mit `pieceName = "Packung"` am Preset gespeichert. So kann das Produkt als "1 Packung" geloggt werden, ohne das Gewicht manuell einzugeben. Wenn das `quantity`-Feld fehlt oder leer ist, bleibt `pieceSize` null (gramm-only Preset).
 - **Response:** `200 OK`
   ```json
   {
-    "preset": { "id": "uuid", "name": "Product Name", "brand": "Brand", "calories": 250, "protein": 10, "carbs": 30, "fat": 12, "barcode": "4008400253867", ... },
+    "preset": {
+      "id": "uuid",
+      "name": "Product Name",
+      "brand": "Brand",
+      "calories": 250,
+      "protein": 10,
+      "carbs": 30,
+      "fat": 12,
+      "barcode": "4008400253867",
+      "pieceSize": 850,
+      "pieceName": "Packung",
+      ...
+    },
     "cached": false,
     "source": "openfoodfacts"
   }
