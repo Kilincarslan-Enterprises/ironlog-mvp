@@ -5,6 +5,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versioning foll
 
 ---
 
+## [0.7.0] — 2026-07-18
+
+### Added
+- **Stück-basierte Portionsgröße** — Lebensmittel können jetzt pro Stück geloggt werden. Beispiel: 1 Ei = 53g, 1 Packung Skyrl = 500g. Beim Anlegen "g pro Stück" und "Stück-Name" ausfüllen.
+- **Gramm/Stück-Umschalter** — Beim Mahlzeit hinzufügen kann zwischen Gramm und Stück gewechselt werden. Nährwerte werden automatisch berechnet (Stück × g-pro-Stück / 100g × Nährwerte).
+- **Preset bearbeiten** — Vorhandene Lebensmittel können jetzt bearbeitet werden (Edit-Button in der Preset-Liste). Alle Felder inkl. Stück-Einstellungen änderbar.
+- **Preset löschen** — Löschen-Button im Edit-Modal.
+
+### Changed
+- `food_presets` Schema: neue Felder `piece_size` (REAL) und `piece_name` (TEXT)
+- Migration 0003_food_piece_serving.sql angewendet
+- `NewPresetForm` und neues `PresetEditForm` mit Stück-Optionen
+
+---
+
 ## [0.6.0] — 2026-07-17
 
 ### Added

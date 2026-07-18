@@ -38,6 +38,8 @@ export interface FoodPreset {
   fiber: number | null;
   sodium: number | null;
   barcode: string | null;
+  pieceSize: number | null;
+  pieceName: string | null;
   isPublic: boolean;
 }
 

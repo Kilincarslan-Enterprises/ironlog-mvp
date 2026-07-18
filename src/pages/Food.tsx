@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Search, ChevronDown, RefreshCw, Trash2, X, ScanLine, Camera } from "lucide-react";
+import { Plus, Search, ChevronDown, RefreshCw, Trash2, X, ScanLine, Camera, Edit3 } from "lucide-react";
 import { Card } from "../components/Card";
 import { Modal } from "../components/Modal";
 import { Loading, ErrorState, EmptyState } from "../components/States";
@@ -7,6 +7,8 @@ import {
   getNutritionDaily,
   getFoodPresets,
   createFoodPreset,
+  updateFoodPreset,
+  deleteFoodPreset,
   createMeal,
   deleteMeal,
   lookupBarcode,
@@ -152,11 +154,13 @@ function AddMealModal({ onClose, onAdded }: { onClose: () => void; onAdded: () =
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<FoodPreset | null>(null);
   const [quantity, setQuantity] = useState<string>("");
+  const [unitMode, setUnitMode] = useState<"g" | "piece">("g");
   const [mealName, setMealName] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [editingPreset, setEditingPreset] = useState<FoodPreset | null>(null);
 
   useEffect(() => {
     getFoodPresets().then((r) => setPresets(r.presets)).catch((e) => setErr(e?.message || "Presets konnten nicht geladen werden."));
@@ -170,24 +174,54 @@ function AddMealModal({ onClose, onAdded }: { onClose: () => void; onAdded: () =
 
   const selectPreset = (p: FoodPreset) => {
     setSelected(p);
-    setQuantity(String(p.servingSize));
+    // Default to piece mode if preset has pieceSize and user hasn't typed anything yet
+    if (p.pieceSize) {
+      setUnitMode("piece");
+      setQuantity("1");
+    } else {
+      setUnitMode("g");
+      setQuantity(String(p.servingSize));
+    }
     setErr(null);
   };
 
   const onBarcodeScanned = (preset: FoodPreset) => {
     setScannerOpen(false);
-    // Add to local list if not already there
     setPresets((prev) => prev.find((p) => p.id === preset.id) ? prev : [preset, ...prev]);
     selectPreset(preset);
+  };
+
+  const onPresetUpdated = (updated: FoodPreset) => {
+    setPresets((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    if (selected?.id === updated.id) setSelected(updated);
+    setEditingPreset(null);
+  };
+
+  const onPresetDeleted = (id: string) => {
+    setPresets((prev) => prev.filter((p) => p.id !== id));
+    if (selected?.id === id) setSelected(null);
+    setEditingPreset(null);
   };
 
   const submit = async () => {
     if (!selected) { setErr("Wähle zuerst ein Lebensmittel."); return; }
     const qty = Number(quantity);
     if (!Number.isFinite(qty) || qty <= 0) { setErr("Gültige Menge eingeben."); return; }
+
+    // Calculate scale factor
+    let grams: number;
+    let displayUnit: string;
+    if (unitMode === "piece" && selected.pieceSize) {
+      grams = qty * selected.pieceSize;
+      displayUnit = selected.pieceName || "Stück";
+    } else {
+      grams = qty;
+      displayUnit = selected.servingUnit;
+    }
+    const scale = grams / selected.servingSize;
+
     setSaving(true); setErr(null);
     try {
-      const scale = qty / selected.servingSize;
       await createMeal({
         name: mealName.trim() || selected.name,
         loggedAt: Date.now(),
@@ -195,7 +229,7 @@ function AddMealModal({ onClose, onAdded }: { onClose: () => void; onAdded: () =
           foodPresetId: selected.id,
           name: selected.name,
           quantity: qty,
-          quantityUnit: selected.servingUnit,
+          quantityUnit: displayUnit,
           calories: Math.round(selected.calories * scale),
           protein: Math.round(selected.protein * scale),
           carbs: Math.round(selected.carbs * scale),
@@ -213,13 +247,23 @@ function AddMealModal({ onClose, onAdded }: { onClose: () => void; onAdded: () =
     return <BarcodeScannerModal onClose={() => setScannerOpen(false)} onFound={onBarcodeScanned} />;
   }
 
+  if (editingPreset) {
+    return (
+      <Modal open onClose={() => setEditingPreset(null)} title="Lebensmittel bearbeiten">
+        <PresetEditForm preset={editingPreset}
+          onCancel={() => setEditingPreset(null)}
+          onSaved={onPresetUpdated}
+          onDeleted={() => onPresetDeleted(editingPreset.id)} />
+      </Modal>
+    );
+  }
+
   if (showNewForm) {
     return (
       <Modal open onClose={onClose} title="Neues Lebensmittel">
         <NewPresetForm
           onCancel={() => setShowNewForm(false)}
-          onCreated={(p) => { setShowNewForm(false); selectPreset(p); }}
-        />
+          onCreated={(p) => { setShowNewForm(false); selectPreset(p); }} />
       </Modal>
     );
   }
@@ -267,15 +311,22 @@ function AddMealModal({ onClose, onAdded }: { onClose: () => void; onAdded: () =
             filtered.map((p) => {
               const active = selected?.id === p.id;
               return (
-                <button key={p.id} type="button" onClick={() => selectPreset(p)}
-                  className={`text-left p-3 rounded-xl border transition-colors ${
+                <div key={p.id}
+                  className={`relative text-left p-3 rounded-xl border transition-colors ${
                     active ? "border-accent bg-accent-soft" : "border-border bg-bg hover:bg-card-hover"
                   }`}>
-                  <div className="font-semibold text-sm text-text-strong truncate">{p.name}</div>
-                  <div className="text-xs text-muted mt-0.5">
-                    {p.calories} kcal · {p.protein}g · pro {p.servingSize}{p.servingUnit}
-                  </div>
-                </button>
+                  <button type="button" onClick={() => selectPreset(p)} className="text-left w-full">
+                    <div className="font-semibold text-sm text-text-strong truncate">{p.name}</div>
+                    <div className="text-xs text-muted mt-0.5">
+                      {p.calories} kcal · {p.protein}g · pro {p.servingSize}{p.servingUnit}
+                      {p.pieceSize && <span className="text-accent"> · {p.pieceName || "Stück"} à {p.pieceSize}g</span>}
+                    </div>
+                  </button>
+                  <button type="button" onClick={() => setEditingPreset(p)}
+                    className="absolute top-1.5 right-1.5 text-muted hover:text-accent p-1" aria-label="Bearbeiten">
+                    <Edit3 size={12} />
+                  </button>
+                </div>
               );
             })
           )}
@@ -283,7 +334,26 @@ function AddMealModal({ onClose, onAdded }: { onClose: () => void; onAdded: () =
 
         {selected && (
           <div className="border-t border-border-muted pt-3">
-            <label className="text-xs text-muted">Menge ({selected.servingUnit})</label>
+            {/* Unit toggle: Gramm vs Stück */}
+            {selected.pieceSize && (
+              <div className="flex gap-1 mb-2">
+                <button type="button" onClick={() => { setUnitMode("g"); setQuantity(String(selected.servingSize)); }}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold border ${
+                    unitMode === "g" ? "bg-accent border-accent text-white" : "border-border text-muted"}`}>
+                  Gramm
+                </button>
+                <button type="button" onClick={() => { setUnitMode("piece"); setQuantity("1"); }}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold border ${
+                    unitMode === "piece" ? "bg-accent border-accent text-white" : "border-border text-muted"}`}>
+                  {selected.pieceName || "Stück"}
+                </button>
+              </div>
+            )}
+            <label className="text-xs text-muted">
+              {unitMode === "piece" && selected.pieceSize
+                ? `Anzahl ${selected.pieceName || "Stück"} (à ${selected.pieceSize}g)`
+                : `Menge (${selected.servingUnit})`}
+            </label>
             <div className="flex items-center gap-2 mt-1">
               <input type="number" inputMode="decimal" value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
@@ -447,6 +517,7 @@ function NewPresetForm({ onCancel, onCreated }: { onCancel: () => void; onCreate
   const [form, setForm] = useState({
     name: "", brand: "", servingSize: "100", servingUnit: "g",
     calories: "", protein: "", carbs: "", fat: "",
+    pieceSize: "", pieceName: "",
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -467,10 +538,93 @@ function NewPresetForm({ onCancel, onCreated }: { onCancel: () => void; onCreate
         protein: Number(form.protein) || 0,
         carbs: Number(form.carbs) || 0,
         fat: Number(form.fat) || 0,
-      });
+        pieceSize: form.pieceSize.trim() ? Number(form.pieceSize) : null,
+        pieceName: form.pieceName.trim() || null,
+      } as any);
       onCreated(r.preset);
     } catch (e: any) { setErr(e?.message || "Anlegen fehlgeschlagen."); }
     finally { setSaving(false); }
+  };
+
+  return (
+    <div className="space-y-3">
+      <Field label="Name"><input value={form.name} onChange={set("name")} className={inputCls} placeholder="z. B. Ei" /></Field>
+      <Field label="Marke (optional)"><input value={form.brand} onChange={set("brand")} className={inputCls} /></Field>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Portionsgröße"><input type="number" value={form.servingSize} onChange={set("servingSize")} className={inputCls} /></Field>
+        <Field label="Einheit"><input value={form.servingUnit} onChange={set("servingUnit")} className={inputCls} /></Field>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Kalorien"><input type="number" value={form.calories} onChange={set("calories")} className={inputCls} /></Field>
+        <Field label="Protein (g)"><input type="number" value={form.protein} onChange={set("protein")} className={inputCls} /></Field>
+        <Field label="Carbs (g)"><input type="number" value={form.carbs} onChange={set("carbs")} className={inputCls} /></Field>
+        <Field label="Fett (g)"><input type="number" value={form.fat} onChange={set("fat")} className={inputCls} /></Field>
+      </div>
+      <div className="border-t border-border-muted pt-3">
+        <p className="text-xs text-muted mb-2">Stück-Option (optional — z. B. 1 Ei = 53g, 1 Packung = 500g)</p>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="g pro Stück"><input type="number" value={form.pieceSize} onChange={set("pieceSize")} className={inputCls} placeholder="z. B. 53" /></Field>
+          <Field label="Stück-Name"><input value={form.pieceName} onChange={set("pieceName")} className={inputCls} placeholder="z. B. Ei, Packung" /></Field>
+        </div>
+      </div>
+      {err && <p className="text-sm text-danger">{err}</p>}
+      <div className="flex gap-2 pt-1">
+        <button type="button" onClick={onCancel}
+          className="flex-1 bg-bg border border-border text-text font-semibold py-3 rounded-xl">Abbrechen</button>
+        <button type="button" onClick={submit} disabled={saving}
+          className="flex-1 bg-accent text-white font-bold py-3 rounded-xl disabled:opacity-50 hover:bg-accent-hover">
+          {saving ? "…" : "Anlegen"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Preset edit form — edit existing preset (including piece settings)
+// ---------------------------------------------------------------------------
+function PresetEditForm({ preset, onCancel, onSaved, onDeleted }: {
+  preset: FoodPreset; onCancel: () => void; onSaved: (p: FoodPreset) => void; onDeleted: () => void;
+}) {
+  const [form, setForm] = useState({
+    name: preset.name, brand: preset.brand || "", servingSize: String(preset.servingSize), servingUnit: preset.servingUnit,
+    calories: String(preset.calories), protein: String(preset.protein), carbs: String(preset.carbs), fat: String(preset.fat),
+    pieceSize: preset.pieceSize ? String(preset.pieceSize) : "", pieceName: preset.pieceName || "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const submit = async () => {
+    if (!form.name.trim()) { setErr("Name erforderlich."); return; }
+    setSaving(true); setErr(null);
+    try {
+      const r = await updateFoodPreset(preset.id, {
+        name: form.name.trim(),
+        brand: form.brand.trim() || null,
+        servingSize: Number(form.servingSize) || 100,
+        servingUnit: form.servingUnit || "g",
+        calories: Number(form.calories) || 0,
+        protein: Number(form.protein) || 0,
+        carbs: Number(form.carbs) || 0,
+        fat: Number(form.fat) || 0,
+        pieceSize: form.pieceSize.trim() ? Number(form.pieceSize) : null,
+        pieceName: form.pieceName.trim() || null,
+      } as any);
+      onSaved(r.preset);
+    } catch (e: any) { setErr(e?.message || "Speichern fehlgeschlagen."); }
+    finally { setSaving(false); }
+  };
+
+  const del = async () => {
+    if (!confirm(`"${preset.name}" wirklich löschen?`)) return;
+    setDeleting(true);
+    try { await deleteFoodPreset(preset.id); onDeleted(); }
+    catch (e: any) { setErr(e?.message || "Löschen fehlgeschlagen."); }
+    finally { setDeleting(false); }
   };
 
   return (
@@ -482,18 +636,29 @@ function NewPresetForm({ onCancel, onCreated }: { onCancel: () => void; onCreate
         <Field label="Einheit"><input value={form.servingUnit} onChange={set("servingUnit")} className={inputCls} /></Field>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Kalien"><input type="number" value={form.calories} onChange={set("calories")} className={inputCls} /></Field>
+        <Field label="Kalorien"><input type="number" value={form.calories} onChange={set("calories")} className={inputCls} /></Field>
         <Field label="Protein (g)"><input type="number" value={form.protein} onChange={set("protein")} className={inputCls} /></Field>
         <Field label="Carbs (g)"><input type="number" value={form.carbs} onChange={set("carbs")} className={inputCls} /></Field>
         <Field label="Fett (g)"><input type="number" value={form.fat} onChange={set("fat")} className={inputCls} /></Field>
+      </div>
+      <div className="border-t border-border-muted pt-3">
+        <p className="text-xs text-muted mb-2">Stück-Option (optional — z. B. 1 Ei = 53g, 1 Packung = 500g)</p>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="g pro Stück"><input type="number" value={form.pieceSize} onChange={set("pieceSize")} className={inputCls} placeholder="z. B. 53" /></Field>
+          <Field label="Stück-Name"><input value={form.pieceName} onChange={set("pieceName")} className={inputCls} placeholder="z. B. Ei, Packung" /></Field>
+        </div>
       </div>
       {err && <p className="text-sm text-danger">{err}</p>}
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onCancel}
           className="flex-1 bg-bg border border-border text-text font-semibold py-3 rounded-xl">Abbrechen</button>
+        <button type="button" onClick={del} disabled={deleting}
+          className="flex-1 bg-danger-soft border border-danger text-danger font-semibold py-3 rounded-xl disabled:opacity-50">
+          {deleting ? "…" : "Löschen"}
+        </button>
         <button type="button" onClick={submit} disabled={saving}
-          className="flex-1 bg-accent text-white font-bold py-3 rounded-xl disabled:opacity-50 hover:bg-accent-hover">
-          {saving ? "…" : "Anlegen"}
+          className="flex-[2] bg-accent text-white font-bold py-3 rounded-xl disabled:opacity-50 hover:bg-accent-hover">
+          {saving ? "…" : "Speichern"}
         </button>
       </div>
     </div>

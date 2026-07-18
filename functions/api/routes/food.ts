@@ -45,6 +45,8 @@ food.post("/presets", async (c) => {
     fiber: Number(body.fiber || 0),
     sodium: Number(body.sodium || 0),
     barcode: body.barcode || null,
+    pieceSize: body.pieceSize != null ? Number(body.pieceSize) : null,
+    pieceName: body.pieceName || null,
     isPublic: !!body.isPublic,
   }).returning();
 
@@ -78,6 +80,8 @@ food.put("/presets/:id", async (c) => {
   if (body.fiber !== undefined) updates.fiber = Number(body.fiber);
   if (body.sodium !== undefined) updates.sodium = Number(body.sodium);
   if (body.barcode !== undefined) updates.barcode = body.barcode || null;
+  if (body.pieceSize !== undefined) updates.pieceSize = body.pieceSize != null ? Number(body.pieceSize) : null;
+  if (body.pieceName !== undefined) updates.pieceName = body.pieceName || null;
   if (body.isPublic !== undefined) updates.isPublic = !!body.isPublic;
 
   const [updated] = await db

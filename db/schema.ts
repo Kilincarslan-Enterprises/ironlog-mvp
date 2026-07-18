@@ -134,6 +134,9 @@ export const foodPresets = sqliteTable(
     fiber: real("fiber").default(0),
     sodium: real("sodium").default(0),
     barcode: text("barcode"),
+    // Piece-based serving (e.g. 53g per egg, 500g per pack of skyrl)
+    pieceSize: real("piece_size"),
+    pieceName: text("piece_name"),
     isPublic: integer("is_public", { mode: "boolean" }).notNull().default(false),
     ...timestamps,
   },
