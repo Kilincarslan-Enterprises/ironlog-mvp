@@ -162,6 +162,21 @@ food.get("/barcode/:barcode", async (c) => {
 
   const n = offData.product.nutriments || {};
 
+  // Parse product quantity (e.g. "850 g", "1 kg", "400 g") for pieceSize
+  // This lets users log "1 Packung" instead of entering grams
+  let pieceSize: number | null = null;
+  let pieceName: string | null = null;
+  const rawQty = offData.product.quantity || (offData.product as any).quantity_imported || "";
+  if (rawQty) {
+    const m = rawQty.match(/([\d.,]+)\s*(kg|g|ml|l)\b/i);
+    if (m) {
+      const val = parseFloat(m[1].replace(",", "."));
+      const unit = m[2].toLowerCase();
+      pieceSize = unit === "kg" ? val * 1000 : unit === "l" ? val * 1000 : val;
+      if (pieceSize > 0) pieceName = "Packung";
+    }
+  }
+
   // 4. Map OFF data → food_preset fields
   const [created] = await db.insert(foodPresets).values({
     id: crypto.randomUUID(),
@@ -177,6 +192,8 @@ food.get("/barcode/:barcode", async (c) => {
     fiber: Number(n["fiber_100g"] || 0),
     sodium: Number(n["sodium_100g"] || 0),
     barcode: barcode,
+    pieceSize,
+    pieceName,
     isPublic: false,
   }).returning();
 
