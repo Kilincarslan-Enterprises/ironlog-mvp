@@ -12,7 +12,6 @@ import {
   createWorkoutPlan,
   updateWorkoutPlan,
   deleteWorkoutPlan,
-  activateWorkoutPlan,
   deleteExercise,
   getWorkoutSessions,
   startWorkoutSession,
@@ -116,11 +115,6 @@ export default function Training() {
     } catch (e: any) { setError(e?.message || "Satz konnte nicht gelöscht werden."); }
   };
 
-  const onActivate = async (id: string) => {
-    try { await activateWorkoutPlan(id); await load(); }
-    catch (e: any) { setError(e?.message || "Plan konnte nicht aktiviert werden."); }
-  };
-
   const createExerciseLocal = async (name: string, type?: string): Promise<Exercise> => {
     const r = await createExercise({ name, category: "strength", type: (type as Exercise["type"]) || "free-weight" });
     setExercises((prev) => [...prev, r.exercise]);
@@ -133,8 +127,8 @@ export default function Training() {
     catch (e: any) { setError(e?.message || "Übung konnte nicht gelöscht werden."); }
   };
 
-  // Plan exercises for active session: show plan exercises first, then all others
-  // so users can also log machines/exercises not in the plan
+  // Live plan exercises for active session — recalculated from latest `plans` state
+  // so plan edits during a session are immediately reflected in add-set modal
   const activePlanExerciseIds: Set<string> = activeSession?.planId
     ? new Set((plans.find((p) => p.id === activeSession.planId)?.exercises || []).map((pe: any) => pe.exerciseId))
     : new Set();
@@ -258,17 +252,19 @@ export default function Training() {
           <EmptyState title="Keine Pläne" hint="Erstelle einen Trainingsplan." />
         ) : (
           plans.map((p) => (
-            <Card key={p.id} title={p.name} subtitle={p.isActive ? "Aktiv" : "Inaktiv"}
+            <Card key={p.id} title={p.name} subtitle={`${(p.exercises?.length ?? 0)} Übung(en)`}
               action={
                 <div className="flex items-center gap-2">
                   <button type="button" onClick={() => setPlanView(p)} className="text-muted hover:text-accent" aria-label="Ansehen"><Eye size={16} /></button>
                   <button type="button" onClick={() => setPlanModal(p)} className="text-muted hover:text-accent" aria-label="Bearbeiten"><Edit3 size={16} /></button>
-                  {p.isActive ? <span className="text-success text-xs font-bold">AKTIV</span>
-                  : <button type="button" onClick={() => onActivate(p.id)} className="text-sm font-semibold text-accent hover:text-accent-hover">Aktivieren</button>}
+                  <button type="button" onClick={() => startSession(p)}
+                    className="bg-accent text-white font-bold text-xs px-3 py-1.5 rounded-lg hover:bg-accent-hover flex items-center gap-1">
+                    <Play size={12} /> Start
+                  </button>
                 </div>
               }
             >
-              <p className="text-sm text-muted">{(p.exercises?.length ?? 0)} Übung(en) · {p.schedule || "kein Schedule"}</p>
+              <p className="text-sm text-muted">{p.schedule || "kein Schedule"}</p>
             </Card>
           ))
         )}
