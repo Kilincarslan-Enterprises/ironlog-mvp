@@ -133,9 +133,17 @@ export default function Training() {
     catch (e: any) { setError(e?.message || "Übung konnte nicht gelöscht werden."); }
   };
 
-  // Plan exercises for active session (if session has planId)
+  // Plan exercises for active session: show plan exercises first, then all others
+  // so users can also log machines/exercises not in the plan
   const activePlanExercises: Exercise[] = activeSession?.planId
-    ? (plans.find((p) => p.id === activeSession.planId)?.exercises || []).map((pe: any) => exercises.find((e) => e.id === pe.exerciseId)).filter((e: Exercise | undefined): e is Exercise => !!e) || []
+    ? (() => {
+        const planExIds = new Set(
+          (plans.find((p) => p.id === activeSession.planId)?.exercises || []).map((pe: any) => pe.exerciseId)
+        );
+        const planExercises = exercises.filter((e) => planExIds.has(e.id));
+        const otherExercises = exercises.filter((e) => !planExIds.has(e.id));
+        return [...planExercises, ...otherExercises];
+      })()
     : exercises;
 
   if (loading) return <div className="p-4"><Loading label="Training laden…" /></div>;
