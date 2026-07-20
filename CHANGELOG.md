@@ -31,16 +31,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versioning foll
 - **Type badges** in exercise list — Color-coded labels: Maschine (accent), Freihantel (success), Körpergewicht (warning).
 - **Plan creation** — All exercise types selectable in plan editor, with type badges.
 - **Session "Satz hinzufügen"** — Shows plan exercises if session started from plan, otherwise all exercises.
+- **Plan-Start für jeden Plan** — Jeder Plan hat einen Start-Button. Pläne können spontan gestartet werden, unabhängig vom Wochenplan.
+- **"Letzter Satz" Anzeige** — Beim Satz hinzufügen wird der letzte Satz der gewählten Übung aus der laufenden Session angezeigt (z.B. "70kg × 8"). "Werte übernehmen" kopiert die Werte in die Eingabefelder.
+- **Add-Set Modal mit Sektionen** — Plan-Übungen mit "IM PLAN" Badge zuerst, dann "Andere Übungen" (inkl. Maschinen) in separater Sektion.
 
 ### Changed
 - Training page rebuilt: machines section removed, unified exercises list with type badges
 - Machine API endpoints now query `exercises WHERE type='machine'` (backward compatible)
 - `Exercise` type extended with `type`, `imageUrl`, `notes` fields
 - Removed separate machines/machineLogs loading from Training page (uses exercises list)
+- **Plan-Modal vereinfacht** — Keine Sets/Reps/Tag Felder mehr beim Übungen auswählen. Nur an/abwählen. Pläne sind reine Übungslisten.
+- **"Aktivieren" entfernt** — Pläne sind Übungslisten, der Wochenplan (Schedule) ist separat. Keine aktiven/inaktiven Pläne mehr.
+- **Plan-Übungen live** — Wenn ein Plan während einer laufenden Session bearbeitet wird, erscheinen neue Übungen sofort im Add-Set Modal unter "Im Plan".
 
 ### Fixed
 - Training page crashes: `session.sets` undefined, `plan.exercises` undefined, `maxWeight` type mismatch
-- **Add-Set Modal zeigt alle Übungen** — Wenn eine Session von einem Plan gestartet wurde, zeigte das "Satz hinzufügen" Modal nur die Plan-Übungen. Maschinen-Übungen, die nicht im Plan stehen, fehlten. Jetzt werden Plan-Übungen zuerst angezeigt, dann alle anderen (inkl. Maschinen).
 
 ---
 
