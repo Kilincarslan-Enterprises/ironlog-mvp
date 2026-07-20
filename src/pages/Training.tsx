@@ -276,7 +276,7 @@ export default function Training() {
 
       {/* Modals */}
       {addSetOpen && activeSession && (
-        <AddSetModal exercises={activePlanExercises} planExerciseIds={activePlanExerciseIds} onClose={() => setAddSetOpen(false)} onAdd={onAddSet} onCreateExercise={createExerciseLocal} />
+        <AddSetModal exercises={activePlanExercises} planExerciseIds={activePlanExerciseIds} sessionSets={activeSession.sets || []} onClose={() => setAddSetOpen(false)} onAdd={onAddSet} onCreateExercise={createExerciseLocal} />
       )}
       {historyEx && <HistoryModal exercise={historyEx} onClose={() => setHistoryEx(null)} />}
       {exerciseModal && (
@@ -562,8 +562,8 @@ function ExerciseDetailModal({ exercise, onClose, onLogWeight, onDelete }: {
 // ---------------------------------------------------------------------------
 // Add set modal — shows plan exercises if session started from plan
 // ---------------------------------------------------------------------------
-function AddSetModal({ exercises, planExerciseIds, onClose, onAdd, onCreateExercise }: {
-  exercises: Exercise[]; planExerciseIds: Set<string>; onClose: () => void;
+function AddSetModal({ exercises, planExerciseIds, sessionSets, onClose, onAdd, onCreateExercise }: {
+  exercises: Exercise[]; planExerciseIds: Set<string>; sessionSets: WorkoutSet[]; onClose: () => void;
   onAdd: (data: any) => void; onCreateExercise: (name: string, type?: string) => Promise<Exercise>;
 }) {
   const [exerciseId, setExerciseId] = useState("");
@@ -581,6 +581,11 @@ function AddSetModal({ exercises, planExerciseIds, onClose, onAdd, onCreateExerc
   const planExercises = exercises.filter((e) => planExerciseIds.has(e.id));
   const otherExercises = exercises.filter((e) => !planExerciseIds.has(e.id));
   const selected = exercises.find((e) => e.id === exerciseId) || null;
+
+  // Find last set for the selected exercise in this session
+  const lastSet = selected
+    ? [...sessionSets].reverse().find((s) => s.exerciseId === exerciseId)
+    : null;
 
   const submit = async () => {
     if (!exerciseId) { setErr("Übung wählen."); return; }
@@ -642,6 +647,18 @@ function AddSetModal({ exercises, planExerciseIds, onClose, onAdd, onCreateExerc
               <div className="bg-accent-soft border border-accent rounded-xl p-2.5 flex items-center justify-between">
                 <span className="text-sm font-bold text-accent">{selected.name}</span>
                 <button type="button" onClick={() => setExerciseId("")} className="text-muted hover:text-text text-xs">ändern</button>
+              </div>
+            )}
+            {selected && lastSet && (
+              <div className="bg-bg border border-border rounded-xl p-2.5">
+                <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-0.5">Letzter Satz</p>
+                <p className="text-sm text-text">
+                  {lastSet.weight ? `${lastSet.weight}kg` : ""} {lastSet.reps ? `× ${lastSet.reps}` : ""}
+                  {lastSet.isWarmup ? " · Warmup" : ""} {lastSet.isDropset ? " · Dropset" : ""}
+                </p>
+                <button type="button"
+                  onClick={() => { setWeight(lastSet.weight ? String(lastSet.weight) : ""); setReps(lastSet.reps ? String(lastSet.reps) : ""); }}
+                  className="text-xs font-semibold text-accent mt-1">Werte übernehmen</button>
               </div>
             )}
             {!selected && (
@@ -708,8 +725,8 @@ function PlanModal({ plan, exercises, onClose, onSaved }: {
   const [name, setName] = useState(plan?.name || "");
   const [schedule, setSchedule] = useState(plan?.schedule || "");
   const [selectedExercises, setSelectedExercises] = useState<
-    Array<{ exerciseId: string; sets?: number; reps?: string; dayLabel?: string }>
-  >(plan?.exercises?.map((e) => ({ exerciseId: e.exerciseId, sets: e.sets ?? undefined, reps: e.reps ?? undefined, dayLabel: e.dayLabel })) || []);
+    Array<{ exerciseId: string; dayLabel?: string }>
+  >(plan?.exercises?.map((e) => ({ exerciseId: e.exerciseId, dayLabel: e.dayLabel })) || []);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -719,10 +736,6 @@ function PlanModal({ plan, exercises, onClose, onSaved }: {
     else setSelectedExercises((prev) => [...prev, { exerciseId: exId, dayLabel: "A" }]);
   };
 
-  const updateField = (exId: string, field: string, value: string) => {
-    setSelectedExercises((prev) => prev.map((e) => (e.exerciseId === exId ? { ...e, [field]: value || undefined } : e)));
-  };
-
   const submit = async () => {
     if (!name.trim()) { setErr("Name erforderlich."); return; }
     setSaving(true);
@@ -730,7 +743,6 @@ function PlanModal({ plan, exercises, onClose, onSaved }: {
       const body: any = { name: name.trim(), schedule: schedule.trim() || undefined };
       const exEntries = selectedExercises.map((e, i) => ({
         exerciseId: e.exerciseId, dayLabel: e.dayLabel || "A", orderIndex: i,
-        sets: e.sets ? Number(e.sets) : undefined, reps: e.reps || undefined,
       }));
       if (exEntries.length > 0) body.exercises = exEntries;
       if (plan) await updateWorkoutPlan(plan.id, body);
@@ -778,17 +790,7 @@ function PlanModal({ plan, exercises, onClose, onSaved }: {
                       </span>
                     </button>
                     {selected && (
-                      <div className="grid grid-cols-3 gap-2 mt-2">
-                        <input type="number" placeholder="Sets" value={selected.sets ?? ""}
-                          onChange={(e) => updateField(ex.id, "sets", e.target.value)}
-                          className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text" />
-                        <input placeholder="Reps" value={selected.reps ?? ""}
-                          onChange={(e) => updateField(ex.id, "reps", e.target.value)}
-                          className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text" />
-                        <input placeholder="Tag" value={selected.dayLabel ?? "A"}
-                          onChange={(e) => updateField(ex.id, "dayLabel", e.target.value)}
-                          className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text" />
-                      </div>
+                      <p className="text-xs text-muted mt-1.5 ml-1">Zum Plan hinzugefügt</p>
                     )}
                   </div>
                 );
@@ -837,7 +839,7 @@ function PlanViewModal({ plan, exercises, onClose, onEdit, onDelete }: {
                     {ex && <span className={`ml-2 text-[10px] font-bold ${TYPE_COLORS[ex.type]}`}>{TYPE_LABELS[ex.type]}</span>}
                   </div>
                   <span className="text-xs text-muted">
-                    {pe.sets ? `${pe.sets}×` : ""} {pe.reps || ""} {pe.dayLabel ? `· ${pe.dayLabel}` : ""}
+                    {pe.dayLabel ? `· ${pe.dayLabel}` : ""}
                   </span>
                 </li>
               );
