@@ -40,6 +40,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versioning foll
 
 ### Fixed
 - Training page crashes: `session.sets` undefined, `plan.exercises` undefined, `maxWeight` type mismatch
+- **Add-Set Modal zeigt alle Übungen** — Wenn eine Session von einem Plan gestartet wurde, zeigte das "Satz hinzufügen" Modal nur die Plan-Übungen. Maschinen-Übungen, die nicht im Plan stehen, fehlten. Jetzt werden Plan-Übungen zuerst angezeigt, dann alle anderen (inkl. Maschinen).
 
 ---
 
