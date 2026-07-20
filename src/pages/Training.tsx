@@ -135,13 +135,13 @@ export default function Training() {
 
   // Plan exercises for active session: show plan exercises first, then all others
   // so users can also log machines/exercises not in the plan
+  const activePlanExerciseIds: Set<string> = activeSession?.planId
+    ? new Set((plans.find((p) => p.id === activeSession.planId)?.exercises || []).map((pe: any) => pe.exerciseId))
+    : new Set();
   const activePlanExercises: Exercise[] = activeSession?.planId
     ? (() => {
-        const planExIds = new Set(
-          (plans.find((p) => p.id === activeSession.planId)?.exercises || []).map((pe: any) => pe.exerciseId)
-        );
-        const planExercises = exercises.filter((e) => planExIds.has(e.id));
-        const otherExercises = exercises.filter((e) => !planExIds.has(e.id));
+        const planExercises = exercises.filter((e) => activePlanExerciseIds.has(e.id));
+        const otherExercises = exercises.filter((e) => !activePlanExerciseIds.has(e.id));
         return [...planExercises, ...otherExercises];
       })()
     : exercises;
@@ -276,7 +276,7 @@ export default function Training() {
 
       {/* Modals */}
       {addSetOpen && activeSession && (
-        <AddSetModal exercises={activePlanExercises} onClose={() => setAddSetOpen(false)} onAdd={onAddSet} onCreateExercise={createExerciseLocal} />
+        <AddSetModal exercises={activePlanExercises} planExerciseIds={activePlanExerciseIds} onClose={() => setAddSetOpen(false)} onAdd={onAddSet} onCreateExercise={createExerciseLocal} />
       )}
       {historyEx && <HistoryModal exercise={historyEx} onClose={() => setHistoryEx(null)} />}
       {exerciseModal && (
@@ -562,8 +562,8 @@ function ExerciseDetailModal({ exercise, onClose, onLogWeight, onDelete }: {
 // ---------------------------------------------------------------------------
 // Add set modal — shows plan exercises if session started from plan
 // ---------------------------------------------------------------------------
-function AddSetModal({ exercises, onClose, onAdd, onCreateExercise }: {
-  exercises: Exercise[]; onClose: () => void;
+function AddSetModal({ exercises, planExerciseIds, onClose, onAdd, onCreateExercise }: {
+  exercises: Exercise[]; planExerciseIds: Set<string>; onClose: () => void;
   onAdd: (data: any) => void; onCreateExercise: (name: string, type?: string) => Promise<Exercise>;
 }) {
   const [exerciseId, setExerciseId] = useState("");
@@ -577,6 +577,10 @@ function AddSetModal({ exercises, onClose, onAdd, onCreateExercise }: {
   const [newExType, setNewExType] = useState<"machine" | "free-weight" | "bodyweight">("free-weight");
   const [creating, setCreating] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  const planExercises = exercises.filter((e) => planExerciseIds.has(e.id));
+  const otherExercises = exercises.filter((e) => !planExerciseIds.has(e.id));
+  const selected = exercises.find((e) => e.id === exerciseId) || null;
 
   const submit = async () => {
     if (!exerciseId) { setErr("Übung wählen."); return; }
@@ -593,9 +597,23 @@ function AddSetModal({ exercises, onClose, onAdd, onCreateExercise }: {
     finally { setCreating(false); }
   };
 
+  const exerciseBtn = (ex: Exercise, inPlan: boolean) => (
+    <button key={ex.id} type="button" onClick={() => setExerciseId(ex.id)}
+      className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left transition-colors ${
+        exerciseId === ex.id ? "border-accent bg-accent-soft" : "border-border bg-bg hover:bg-card-hover"
+      }`}>
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-semibold text-text">{ex.name}</span>
+        <span className={`text-[10px] font-bold ${TYPE_COLORS[ex.type]}`}>{TYPE_LABELS[ex.type]}</span>
+      </div>
+      {inPlan && <span className="text-[9px] font-bold text-accent bg-accent-soft border border-accent rounded px-1.5 py-0.5">IM PLAN</span>}
+    </button>
+  );
+
   return (
     <Modal open onClose={onClose} title="Satz hinzufügen"
-      footer={<button type="button" onClick={submit} className="w-full bg-accent text-white font-bold py-3 rounded-xl hover:bg-accent-hover">Speichern</button>}>
+      footer={<button type="button" onClick={submit} disabled={!exerciseId}
+        className="w-full bg-accent text-white font-bold py-3 rounded-xl hover:bg-accent-hover disabled:opacity-50">Speichern</button>}>
       <div className="space-y-3">
         {showNewEx ? (
           <div className="space-y-2">
@@ -619,18 +637,37 @@ function AddSetModal({ exercises, onClose, onAdd, onCreateExercise }: {
             </div>
           </div>
         ) : (
-          <div>
-            <label className="text-xs text-muted">Übung</label>
-            {exercises.length === 0 ? (
-              <p className="text-sm text-muted mt-1">Keine Übungen im Plan. Erstelle eine neue.</p>
-            ) : (
-              <select value={exerciseId} onChange={(e) => setExerciseId(e.target.value)}
-                className="w-full mt-1 bg-bg border border-border rounded-xl px-3 py-2.5 text-sm text-text">
-                <option value="">Wählen…</option>
-                {exercises.map((ex) => (<option key={ex.id} value={ex.id}>{ex.name} ({TYPE_LABELS[ex.type]})</option>))}
-              </select>
+          <div className="space-y-2">
+            {selected && (
+              <div className="bg-accent-soft border border-accent rounded-xl p-2.5 flex items-center justify-between">
+                <span className="text-sm font-bold text-accent">{selected.name}</span>
+                <button type="button" onClick={() => setExerciseId("")} className="text-muted hover:text-text text-xs">ändern</button>
+              </div>
             )}
-            <button type="button" onClick={() => setShowNewEx(true)} className="mt-1 text-xs font-semibold text-accent">+ Neue Übung</button>
+            {!selected && (
+              <>
+                {planExercises.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-accent mb-1.5">Im Plan</p>
+                    <div className="space-y-1.5 max-h-[30dvh] overflow-y-auto">
+                      {planExercises.map((ex) => exerciseBtn(ex, true))}
+                    </div>
+                  </div>
+                )}
+                {otherExercises.length > 0 && (
+                  <div className={planExercises.length > 0 ? "pt-2 border-t border-border-muted" : ""}>
+                    <p className="text-xs font-bold text-muted mb-1.5">Andere Übungen</p>
+                    <div className="space-y-1.5 max-h-[30dvh] overflow-y-auto">
+                      {otherExercises.map((ex) => exerciseBtn(ex, false))}
+                    </div>
+                  </div>
+                )}
+                {exercises.length === 0 && (
+                  <p className="text-sm text-muted">Keine Übungen vorhanden. Erstelle eine neue.</p>
+                )}
+                <button type="button" onClick={() => setShowNewEx(true)} className="text-xs font-semibold text-accent">+ Neue Übung</button>
+              </>
+            )}
           </div>
         )}
         <div className="grid grid-cols-3 gap-2">
